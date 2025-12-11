@@ -25,6 +25,11 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 
+/**
+ * Unit tests for the {@link AuthServiceImpl}.
+ * These tests verify the business logic of the authentication service,
+ * including user creation, duplicate email handling, password validation, and JWT generation.
+ */
 @ActiveProfiles("test")
 class AuthServiceImplTest {
 
@@ -45,6 +50,7 @@ class AuthServiceImplTest {
         final AutoCloseable autoCloseable = MockitoAnnotations.openMocks(this);
     }
 
+    // Tests that a new user is created successfully and a token is returned.
     @Test
     void signup_creates_user_and_returns_token() {
         SignupRequest req = new SignupRequest("new@kaban.com", "Password123!", "New", "User");
@@ -66,6 +72,7 @@ class AuthServiceImplTest {
         verify(userRepository).save(any(UserAccount.class));
     }
 
+    // Tests that an exception is thrown when trying to sign up with an email that already exists.
     @Test
     void signup_throws_on_duplicate_email() {
         SignupRequest req = new SignupRequest("dup@kaban.com", "Password123!", "Dup", "User");
@@ -77,6 +84,7 @@ class AuthServiceImplTest {
         verify(userRepository, never()).save(any());
     }
 
+    // Tests that a token is returned for valid login credentials.
     @Test
     void login_returns_token_for_valid_credentials() {
         LoginRequest req = new LoginRequest("user@kaban.com", "Password123!");
@@ -96,6 +104,7 @@ class AuthServiceImplTest {
         assertThat(res.expiresAt()).isNotBlank();
     }
 
+    // Tests that an inactive user is rejected during login.
     @Test
     void login_rejects_inactive_user() {
         LoginRequest req = new LoginRequest("user@kaban.com", "Password123!");
@@ -109,6 +118,7 @@ class AuthServiceImplTest {
                 .isInstanceOf(BadCredentialsException.class);
     }
 
+    // Tests that a login attempt with a bad password is rejected.
     @Test
     void login_rejects_bad_password() {
         LoginRequest req = new LoginRequest("user@kaban.com", "wrong");
