@@ -20,6 +20,11 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+/**
+ * Unit tests for the {@link AuthController}.
+ * These tests use {@link MockMvc} to test the controller's endpoints without a running server.
+ * The {@link AuthService} is mocked to isolate the controller's logic.
+ */
 @ActiveProfiles("test")
 class AuthControllerTest {
 
@@ -37,6 +42,7 @@ class AuthControllerTest {
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 
+    // Tests that the signup endpoint returns a 200 OK status and a token for a valid request.
     @Test
     void signup_returns_200_and_token() throws Exception {
         AuthResponse response = new AuthResponse("jwt-token", "ROLE_USER", Instant.now().toString());
@@ -53,6 +59,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.role").value("ROLE_USER"));
     }
 
+    // Tests that the login endpoint returns a 200 OK status and a token for a valid request.
     @Test
     void login_returns_200_and_token() throws Exception {
         AuthResponse response = new AuthResponse("jwt-token", "ROLE_USER", Instant.now().toString());
@@ -68,6 +75,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.role").value("ROLE_USER"));
     }
 
+    // Tests that the signup endpoint returns a 400 Bad Request status for an invalid payload.
     @Test
     void signup_returns_400_on_invalid_payload() throws Exception {
         String badPayload = """
