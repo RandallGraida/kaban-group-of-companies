@@ -73,6 +73,7 @@
     "RunOnceActivity.git.unshallow": "true",
     "RunOnceActivity.go.formatter.settings.were.checked": "true",
     "RunOnceActivity.go.migrated.go.modules.settings": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
     "git-widget-placeholder": "feat/email-verification",
     "go.import.settings.migrated": "true",
@@ -167,7 +168,7 @@
       <workItem from="1765371960838" duration="2034000" />
       <workItem from="1765429678692" duration="7691000" />
       <workItem from="1765446486938" duration="2368000" />
-      <workItem from="1765507351928" duration="626000" />
+      <workItem from="1765507351928" duration="979000" />
     </task>
     <servers />
   </component>
