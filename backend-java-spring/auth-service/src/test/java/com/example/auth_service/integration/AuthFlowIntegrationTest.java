@@ -1,11 +1,13 @@
 package com.example.auth_service.integration;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.auth_service.dto.LoginRequest;
-import com.example.auth_service.dto.SignupRequest;
+import com.example.auth_service.dto.RegistrationRequest;
+import com.example.auth_service.repository.VerificationTokenRepository;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +34,9 @@ class AuthFlowIntegrationTest {
     @Autowired
     private WebApplicationContext context;
 
+    @Autowired
+    private VerificationTokenRepository tokenRepository;
+
     @org.junit.jupiter.api.BeforeEach
     void initMockMvc() {
         this.mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
@@ -44,14 +49,23 @@ class AuthFlowIntegrationTest {
     @Test
     void signup_then_login_succeeds() throws Exception {
         String email = "user_" + UUID.randomUUID() + "@example.com";
-        SignupRequest signup = new SignupRequest(email, "Password123!", "Jane", "Doe");
+        RegistrationRequest signup = new RegistrationRequest(email, "Password123!");
 
-        mockMvc.perform(post("/api/auth/signup")
+        mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(signup)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").exists())
-                .andExpect(jsonPath("$.role").value("ROLE_USER"));
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.message").exists());
+
+        String token = tokenRepository.findAll().stream()
+                .filter(t -> t.getUser().getEmail().equals(email))
+                .findFirst()
+                .orElseThrow()
+                .getToken();
+
+        mockMvc.perform(get("/api/auth/verify")
+                        .param("token", token))
+                .andExpect(status().isOk());
 
         LoginRequest login = new LoginRequest(email, "Password123!");
 

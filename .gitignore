@@ -1,2 +1,8 @@
 .idea/
 .vscode/
+
+# Spring Boot config (keep real secrets out of git)
+**/src/main/resources/application.properties
+
+# Build output
+**/target/

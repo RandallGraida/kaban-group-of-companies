@@ -8,7 +8,12 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import java.util.Collection;
+import java.util.List;
 import lombok.Data;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 /**
  * Represents a user account in the system.
@@ -17,7 +22,7 @@ import lombok.Data;
 @Data
 @Entity
 @Table(name = "users")
-public class UserAccount {
+public class UserAccount implements UserDetails {
     // The unique identifier for the user account.
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -42,4 +47,43 @@ public class UserAccount {
     // A flag indicating whether the user account is active.
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
+
+    // Indicates whether the user has verified their email address.
+    @Column(name = "enabled", nullable = false)
+    private boolean enabled = false;
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority(role));
+    }
+
+    @Override
+    public String getPassword() {
+        return passwordHash;
+    }
+
+    @Override
+    public String getUsername() {
+        return email;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return enabled;
+    }
 }
