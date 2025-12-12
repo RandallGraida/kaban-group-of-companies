@@ -14,7 +14,6 @@ import com.example.auth_service.dto.LoginRequest;
 import com.example.auth_service.dto.RegistrationRequest;
 import com.example.auth_service.dto.RegistrationResponse;
 import com.example.auth_service.dto.SignupRequest;
-import com.example.auth_service.event.UserRegisteredEvent;
 import com.example.auth_service.exception.InvalidTokenException;
 import com.example.auth_service.exception.UserAlreadyExistsException;
 import com.example.auth_service.model.UserAccount;
@@ -22,6 +21,7 @@ import com.example.auth_service.model.VerificationToken;
 import com.example.auth_service.repository.UserAccountRepository;
 import com.example.auth_service.repository.VerificationTokenRepository;
 import com.example.auth_service.security.JwtUtil;
+import com.example.auth_service.service.publisher.UserRegisteredPublisher;
 import java.util.Optional;
 import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,7 +29,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -38,9 +37,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 
 /**
- * Unit tests for the {@link AuthServiceImpl}.
- * These tests verify the business logic of the authentication service,
- * including user creation, duplicate email handling, password validation, and JWT generation.
+ * Unit tests for {@link AuthServiceImpl}.
+ * This class tests the core business logic of the authentication service, including user registration,
+ * email verification, and login processes. It uses mocks for dependencies to isolate the service logic.
  */
 @ActiveProfiles("test")
 class AuthServiceImplTest {
@@ -58,7 +57,7 @@ class AuthServiceImplTest {
     private VerificationTokenRepository tokenRepository;
 
     @Mock
-    private ApplicationEventPublisher eventPublisher;
+    private UserRegisteredPublisher userRegisteredPublisher;
 
     @Mock
     private AuthenticationManager authenticationManager;
@@ -71,7 +70,10 @@ class AuthServiceImplTest {
         final AutoCloseable autoCloseable = MockitoAnnotations.openMocks(this);
     }
 
-    // Tests that a new user is created successfully and a token is returned.
+    /**
+     * Verifies that user registration creates a disabled user, saves a verification token,
+     * and publishes a registration event.
+     */
     @Test
     void register_creates_disabled_user_and_token() {
         RegistrationRequest req = new RegistrationRequest("new@kaban.com", "Password123!");
@@ -85,10 +87,10 @@ class AuthServiceImplTest {
         assertThat(res.message()).contains("verify");
         verify(userRepository).save(any(UserAccount.class));
         verify(tokenRepository).save(any(VerificationToken.class));
-        verify(eventPublisher).publishEvent(any(UserRegisteredEvent.class));
+        verify(userRegisteredPublisher).publish(eq("new@kaban.com"), any());
     }
 
-    // Tests that an exception is thrown when trying to sign up with an email that already exists.
+    // Ensures that registration fails if the email address is already in use.
     @Test
     void register_throws_on_duplicate_email() {
         RegistrationRequest req = new RegistrationRequest("dup@kaban.com", "Password123!");
@@ -99,7 +101,7 @@ class AuthServiceImplTest {
         verify(userRepository, never()).save(any());
     }
 
-    // Tests that a token is returned for valid login credentials.
+    // Tests successful login for a user with valid credentials, resulting in a JWT.
     @Test
     void login_returns_token_for_valid_credentials() {
         LoginRequest req = new LoginRequest("user@kaban.com", "Password123!");
@@ -121,7 +123,7 @@ class AuthServiceImplTest {
         assertThat(res.expiresAt()).isNotBlank();
     }
 
-    // Tests that an inactive user is rejected during login.
+    // Verifies that an inactive user cannot log in.
     @Test
     void login_rejects_inactive_user() {
         LoginRequest req = new LoginRequest("user@kaban.com", "Password123!");
@@ -138,7 +140,7 @@ class AuthServiceImplTest {
                 .isInstanceOf(BadCredentialsException.class);
     }
 
-    // Tests that a login attempt with a bad password is rejected (via AuthenticationManager).
+    // Confirms that login fails when incorrect credentials are provided.
     @Test
     void login_rejects_bad_password() {
         LoginRequest req = new LoginRequest("user@kaban.com", "wrong");
@@ -149,6 +151,7 @@ class AuthServiceImplTest {
                 .isInstanceOf(BadCredentialsException.class);
     }
 
+    // Tests that a user is enabled and the verification token is deleted upon successful email verification.
     @Test
     void verifyUser_enables_user_and_deletes_token() {
         UserAccount user = new UserAccount();
@@ -168,6 +171,7 @@ class AuthServiceImplTest {
         verify(tokenRepository).delete(token);
     }
 
+    // Ensures that an expired verification token cannot be used to verify an account.
     @Test
     void verifyUser_throws_on_expired_token() {
         VerificationToken token = new VerificationToken();

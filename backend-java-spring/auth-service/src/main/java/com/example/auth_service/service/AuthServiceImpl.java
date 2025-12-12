@@ -5,7 +5,6 @@ import com.example.auth_service.dto.LoginRequest;
 import com.example.auth_service.dto.RegistrationRequest;
 import com.example.auth_service.dto.RegistrationResponse;
 import com.example.auth_service.dto.SignupRequest;
-import com.example.auth_service.event.UserRegisteredEvent;
 import com.example.auth_service.exception.InvalidTokenException;
 import com.example.auth_service.exception.UserAlreadyExistsException;
 import com.example.auth_service.model.UserAccount;
@@ -13,11 +12,11 @@ import com.example.auth_service.model.VerificationToken;
 import com.example.auth_service.repository.VerificationTokenRepository;
 import com.example.auth_service.repository.UserAccountRepository;
 import com.example.auth_service.security.JwtUtil;
+import com.example.auth_service.service.publisher.UserRegisteredPublisher;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -28,7 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Implements the {@link AuthService} interface to provide authentication and user management services.
- * This class handles the business logic for user signup and login, including password hashing and JWT generation.
+ * This class handles the business logic for user registration, email verification, and login.
+ * It coordinates with repositories for data access, a password encoder for security, and a publisher to notify other services of user registration.
  */
 @Service
 @RequiredArgsConstructor
@@ -38,15 +38,15 @@ public class AuthServiceImpl implements AuthService {
     private final VerificationTokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
-    private final ApplicationEventPublisher eventPublisher;
+    private final UserRegisteredPublisher userRegisteredPublisher;
     private final AuthenticationManager authenticationManager;
 
     /**
-     * Registers a new user in the system.
+     * Registers a new user, creates a verification token, and publishes a user registration event.
      *
-     * @param request The {@link SignupRequest} containing the new user's details.
-     * @return An {@link AuthResponse} containing a JWT for the newly created user.
-     * @throws IllegalArgumentException if the email is already registered.
+     * @param request The registration request containing user details.
+     * @return A response indicating the registration was successful.
+     * @throws UserAlreadyExistsException if the email is already in use.
      */
     @Override
     @Transactional
@@ -68,11 +68,17 @@ public class AuthServiceImpl implements AuthService {
         token.setExpiryDate(Instant.now().plusSeconds(24 * 60 * 60));
         tokenRepository.save(token);
 
-        eventPublisher.publishEvent(new UserRegisteredEvent(this, user, tokenValue));
+        userRegisteredPublisher.publish(user.getEmail(), tokenValue);
 
         return new RegistrationResponse("Registration successful. Please verify your email.");
     }
 
+    /**
+     * Verifies a user's email address using the provided token.
+     *
+     * @param token The verification token sent to the user's email.
+     * @throws InvalidTokenException if the token is invalid or expired.
+     */
     @Override
     @Transactional
     public void verifyUser(String token) {
@@ -88,6 +94,12 @@ public class AuthServiceImpl implements AuthService {
         tokenRepository.delete(verificationToken);
     }
 
+    /**
+     * A convenience method that delegates to the main user registration logic.
+     *
+     * @param request The signup request.
+     * @return A registration response.
+     */
     @Override
     @Transactional
     public RegistrationResponse signup(SignupRequest request) {
@@ -97,9 +109,9 @@ public class AuthServiceImpl implements AuthService {
     /**
      * Authenticates a user and provides a JWT upon successful login.
      *
-     * @param request The {@link LoginRequest} containing the user's credentials.
-     * @return An {@link AuthResponse} containing a JWT for the authenticated user.
-     * @throws BadCredentialsException if the credentials are invalid or the user is inactive.
+     * @param request The login request containing user credentials.
+     * @return An authentication response with a JWT.
+     * @throws BadCredentialsException if credentials are bad or the user is not verified.
      */
     @Override
     public AuthResponse login(LoginRequest request) {
