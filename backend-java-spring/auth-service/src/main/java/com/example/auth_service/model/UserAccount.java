@@ -11,6 +11,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.Collection;
 import java.util.List;
 import lombok.Data;
+import org.hibernate.annotations.ColumnDefault;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -49,7 +50,8 @@ public class UserAccount implements UserDetails {
     private boolean active = true;
 
     // Indicates whether the user has verified their email address.
-    @Column(name = "enabled", nullable = false)
+    @Column(name = "enabled", nullable = false, columnDefinition = "boolean default false")
+    @ColumnDefault("false")
     private boolean enabled = false;
 
     @Override

@@ -1,9 +1,9 @@
 package com.example.notification_service.service;
 
 import jakarta.mail.internet.MimeMessage;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -15,18 +15,21 @@ import org.springframework.stereotype.Service;
  * The email content is an HTML template with a verification link.
  */
 @Service
-@RequiredArgsConstructor
 public class VerificationEmailService {
 
     private static final Logger logger = LoggerFactory.getLogger(VerificationEmailService.class);
 
-    private final JavaMailSender mailSender;
+    private final ObjectProvider<JavaMailSender> mailSenderProvider;
 
     @Value("${app.auth-base-url:http://localhost:8080}")
     private String authBaseUrl;
 
     @Value("${app.mail.from:no-reply@kaban.local}")
     private String fromAddress;
+
+    public VerificationEmailService(ObjectProvider<JavaMailSender> mailSenderProvider) {
+        this.mailSenderProvider = mailSenderProvider;
+    }
 
     /**
      * Sends a verification email to the specified email address.
@@ -45,6 +48,16 @@ public class VerificationEmailService {
                 <p><a href="%s">%s</a></p>
                 <p>This link expires in 24 hours.</p>
                 """.formatted(verifyLink, verifyLink);
+
+        JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
+        if (mailSender == null) {
+            logger.info(
+                    "JavaMailSender is not configured; skipping email send. to={}, verifyLink={}",
+                    toEmail,
+                    verifyLink
+            );
+            return;
+        }
 
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
