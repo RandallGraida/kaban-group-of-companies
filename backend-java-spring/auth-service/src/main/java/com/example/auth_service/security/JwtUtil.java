@@ -1,14 +1,15 @@
 package com.example.auth_service.security;
 
+import com.example.auth_service.config.JwtProperties;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
@@ -17,9 +18,14 @@ import org.springframework.stereotype.Component;
  * It uses a secure key for signing and verifying tokens.
  */
 @Component
+@RequiredArgsConstructor
 public class JwtUtil {
-    private final Key signingKey = Keys.secretKeyFor(SignatureAlgorithm.HS256);
-    private static final long EXPIRY_MINUTES = 60;
+
+    private final JwtProperties properties;
+
+    private Key signingKey() {
+        return Keys.hmacShaKeyFor(properties.getSecret().getBytes(StandardCharsets.UTF_8));
+    }
 
     /**
      * Generates a JWT for the given subject and claims.
@@ -34,8 +40,8 @@ public class JwtUtil {
                 .setClaims(claims)
                 .setSubject(subject)
                 .setIssuedAt(Date.from(now))
-                .setExpiration(Date.from(now.plus(EXPIRY_MINUTES, ChronoUnit.MINUTES)))
-                .signWith(signingKey)
+                .setExpiration(Date.from(now.plus(properties.getExpiration())))
+                .signWith(signingKey())
                 .compact();
     }
 
@@ -47,7 +53,7 @@ public class JwtUtil {
      */
     public Claims parse(String token) {
         return Jwts.parserBuilder()
-                .setSigningKey(signingKey)
+                .setSigningKey(signingKey())
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
@@ -59,6 +65,6 @@ public class JwtUtil {
      * @return The {@link Instant} at which the token will expire.
      */
     public Instant expiresAt() {
-        return Instant.now().plus(EXPIRY_MINUTES, ChronoUnit.MINUTES);
+        return Instant.now().plus(properties.getExpiration());
     }
 }
