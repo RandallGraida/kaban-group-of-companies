@@ -7,6 +7,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.example.auth_service.dto.AuthResponse;
 import com.example.auth_service.dto.LoginRequest;
+import com.example.auth_service.dto.RegistrationRequest;
+import com.example.auth_service.dto.RegistrationResponse;
 import com.example.auth_service.dto.SignupRequest;
 import com.example.auth_service.service.AuthService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,18 +47,17 @@ class AuthControllerTest {
     // Tests that the signup endpoint returns a 200 OK status and a token for a valid request.
     @Test
     void signup_returns_200_and_token() throws Exception {
-        AuthResponse response = new AuthResponse("jwt-token", "ROLE_USER", Instant.now().toString());
-        when(authService.signup(new SignupRequest("test@kaban.com", "Password123!", "Test", "User")))
+        RegistrationResponse response = new RegistrationResponse("Registration successful. Please verify your email.");
+        when(authService.registerUser(new RegistrationRequest("test@kaban.com", "Password123!", "Jane", "Doe")))
                 .thenReturn(response);
 
-        SignupRequest req = new SignupRequest("test@kaban.com", "Password123!", "Test", "User");
+        RegistrationRequest req = new RegistrationRequest("test@kaban.com", "Password123!", "Jane", "Doe");
 
-        mockMvc.perform(post("/api/auth/signup")
+        mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").value("jwt-token"))
-                .andExpect(jsonPath("$.role").value("ROLE_USER"));
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.message").exists());
     }
 
     // Tests that the login endpoint returns a 200 OK status and a token for a valid request.
@@ -82,7 +83,7 @@ class AuthControllerTest {
                 {"email":"","password":"short","firstName":"","lastName":""}
                 """;
 
-        mockMvc.perform(post("/api/auth/signup")
+        mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(badPayload))
                 .andExpect(status().isBadRequest());
