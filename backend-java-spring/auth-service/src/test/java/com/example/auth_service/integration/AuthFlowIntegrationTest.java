@@ -26,6 +26,13 @@ import org.springframework.web.context.WebApplicationContext;
  * Integration tests for the authentication flow.
  * These tests cover the entire authentication process, from signup to login,
  * using a real Spring Boot application context and an in-memory H2 database.
+ *
+ * <p>Scope: HTTP contract + security behavior for the core happy-path flow:
+ * register → token created → verify → login → JWT gates protected endpoints.</p>
+ *
+ * <p>We intentionally validate externally observable behavior (status codes and response shape)
+ * instead of repository internals wherever possible. The one exception is obtaining the verification
+ * token from the repository because email delivery is handled by a different service.</p>
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -53,9 +60,11 @@ class AuthFlowIntegrationTest {
      */
     @Test
     void signup_then_login_succeeds() throws Exception {
+        // Use a unique email per run to keep tests isolated and avoid uniqueness collisions.
         String email = "user_" + UUID.randomUUID() + "@example.com";
         RegistrationRequest signup = new RegistrationRequest(email, "Password123!", "Jane", "Doe");
 
+        // Register: must return 201 and must not leak sensitive fields in the JSON payload.
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(signup)))
@@ -65,24 +74,28 @@ class AuthFlowIntegrationTest {
                 .andExpect(jsonPath("$.password_hash").doesNotExist())
                 .andExpect(jsonPath("$.verificationToken").doesNotExist());
 
+        // Pull the token directly from the DB to keep the test self-contained (email delivery is out-of-process).
         String token = tokenRepository.findAll().stream()
                 .filter(t -> t.getUser().getEmail().equals(email))
                 .findFirst()
                 .orElseThrow()
                 .getToken();
 
+        // Login should be blocked until verification completes.
         LoginRequest loginBeforeVerify = new LoginRequest(email, "Password123!");
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(loginBeforeVerify)))
                 .andExpect(status().isForbidden());
 
+        // Verify: should enable the account and consume the token.
         mockMvc.perform(get("/api/auth/verify")
                         .param("token", token))
                 .andExpect(status().isOk());
 
         LoginRequest login = new LoginRequest(email, "Password123!");
 
+        // Login: must return a JWT and role for downstream authorization decisions.
         MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(login)))
@@ -97,12 +110,15 @@ class AuthFlowIntegrationTest {
                 .get("token")
                 .asText();
 
+        // Protected route: missing JWT must be rejected (401).
         mockMvc.perform(get("/api/auth/me"))
                 .andExpect(status().isUnauthorized());
 
+        // Protected route: invalid/tampered JWT must be rejected (401) without revealing details.
         mockMvc.perform(get("/api/auth/me").header(HttpHeaders.AUTHORIZATION, "Bearer not-a-jwt"))
                 .andExpect(status().isUnauthorized());
 
+        // Protected route: valid JWT authenticates the request.
         mockMvc.perform(get("/api/auth/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(email));

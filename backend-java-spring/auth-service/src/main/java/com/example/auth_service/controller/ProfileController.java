@@ -8,7 +8,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Simple authenticated endpoint used by clients to verify a JWT session.
+ * Minimal authenticated endpoint used by clients to validate a JWT session.
+ *
+ * <p>This endpoint is intentionally read-only and returns only non-sensitive identity attributes
+ * derived from the authenticated principal. It is useful for:</p>
+ * <ul>
+ *   <li>Frontend "session check" on app load.</li>
+ *   <li>Manual verification of JWT middleware behavior.</li>
+ *   <li>Smoke tests that require a protected route.</li>
+ * </ul>
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -16,6 +24,7 @@ public class ProfileController {
 
     @GetMapping("/me")
     public ResponseEntity<Map<String, Object>> me(Authentication authentication) {
+        // Authentication is provided by Spring Security once JwtAuthenticationFilter succeeds.
         return ResponseEntity.ok(
                 Map.of(
                         "email", authentication.getName(),
@@ -24,4 +33,3 @@ public class ProfileController {
         );
     }
 }
-

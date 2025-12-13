@@ -20,6 +20,15 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+/**
+ * Postgres-backed integration tests for persistence constraints.
+ *
+ * <p>Why Testcontainers: H2 is a great unit/integration DB, but it can diverge from Postgres in
+ * DDL behavior, constraint enforcement, and type mapping. These tests guard against production-only
+ * schema regressions.</p>
+ *
+ * <p>Note: the suite is configured to auto-skip if Docker is unavailable.</p>
+ */
 @SpringBootTest
 @ActiveProfiles("test")
 @Testcontainers(disabledWithoutDocker = true)
@@ -33,11 +42,13 @@ class AuthJpaPostgresIntegrationTest {
 
     @DynamicPropertySource
     static void datasource(DynamicPropertyRegistry registry) {
+        // Wire the Spring datasource to the ephemeral Postgres container.
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
         registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
         registry.add("spring.jpa.database-platform", () -> "org.hibernate.dialect.PostgreSQLDialect");
+        // For schema verification we want the database created from entity mappings.
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
     }
 
@@ -52,6 +63,8 @@ class AuthJpaPostgresIntegrationTest {
 
     @Test
     void users_table_has_enabled_column() {
+        // Email verification requires an explicit enabled/verified flag.
+        // This assertion prevents silent regressions where "enabled" is removed from DDL.
         Integer count = jdbcTemplate.queryForObject(
                 """
                 select count(*)
@@ -67,6 +80,7 @@ class AuthJpaPostgresIntegrationTest {
 
     @Test
     void users_email_is_unique() {
+        // Email uniqueness is a critical security property to prevent duplicate identities.
         UserAccount u1 = new UserAccount();
         u1.setEmail("dup@example.com");
         u1.setPasswordHash("hash");
@@ -86,6 +100,7 @@ class AuthJpaPostgresIntegrationTest {
 
     @Test
     void verification_token_is_unique_per_user() {
+        // Enforce one active verification token per user to avoid ambiguity and replay windows.
         UserAccount user = new UserAccount();
         user.setEmail("user@example.com");
         user.setPasswordHash("hash");
