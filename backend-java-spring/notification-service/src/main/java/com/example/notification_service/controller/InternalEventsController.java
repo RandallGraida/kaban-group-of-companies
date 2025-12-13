@@ -4,6 +4,8 @@ import com.example.notification_service.dto.UserRegisteredEventDto;
 import com.example.notification_service.service.VerificationEmailService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -20,6 +22,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class InternalEventsController {
 
+    private static final Logger logger = LoggerFactory.getLogger(InternalEventsController.class);
+
     private final VerificationEmailService verificationEmailService;
 
     /**
@@ -31,6 +35,7 @@ public class InternalEventsController {
      */
     @PostMapping("/user-registered")
     public ResponseEntity<Void> userRegistered(@Valid @RequestBody UserRegisteredEventDto event) {
+        logger.info("Received user-registered event for email={}", event.email());
         verificationEmailService.sendVerificationEmail(event.email(), event.verificationToken());
         return ResponseEntity.accepted().build();
     }

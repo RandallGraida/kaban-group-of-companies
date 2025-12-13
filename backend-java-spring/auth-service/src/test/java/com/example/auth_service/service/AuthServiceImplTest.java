@@ -14,7 +14,9 @@ import com.example.auth_service.dto.LoginRequest;
 import com.example.auth_service.dto.RegistrationRequest;
 import com.example.auth_service.dto.RegistrationResponse;
 import com.example.auth_service.dto.SignupRequest;
+import com.example.auth_service.exception.EmailNotVerifiedException;
 import com.example.auth_service.exception.InvalidTokenException;
+import com.example.auth_service.exception.TokenExpiredException;
 import com.example.auth_service.exception.UserAlreadyExistsException;
 import com.example.auth_service.model.UserAccount;
 import com.example.auth_service.model.VerificationToken;
@@ -76,7 +78,7 @@ class AuthServiceImplTest {
      */
     @Test
     void register_creates_disabled_user_and_token() {
-        RegistrationRequest req = new RegistrationRequest("new@kaban.com", "Password123!");
+        RegistrationRequest req = new RegistrationRequest("new@kaban.com", "Password123!", "Jane", "Doe");
         when(userRepository.existsByEmail(req.email())).thenReturn(false);
         when(passwordEncoder.encode(req.password())).thenReturn("hashed");
         when(userRepository.save(any(UserAccount.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -93,8 +95,8 @@ class AuthServiceImplTest {
     // Ensures that registration fails if the email address is already in use.
     @Test
     void register_throws_on_duplicate_email() {
-        RegistrationRequest req = new RegistrationRequest("dup@kaban.com", "Password123!");
-        when(userRepository.existsByEmail(req.email())).thenReturn(true);
+        RegistrationRequest req = new RegistrationRequest("dup@kaban.com", "Password123!", "Jane", "Doe");
+        when(userRepository.existsByEmail("dup@kaban.com")).thenReturn(true);
 
         assertThatThrownBy(() -> authService.registerUser(req))
                 .isInstanceOf(UserAlreadyExistsException.class);
@@ -106,11 +108,11 @@ class AuthServiceImplTest {
     void login_returns_token_for_valid_credentials() {
         LoginRequest req = new LoginRequest("user@kaban.com", "Password123!");
         UserAccount user = new UserAccount();
-        user.setEmail(req.email());
+        user.setEmail("user@kaban.com");
         user.setPasswordHash("hashed");
         user.setActive(true);
         user.setEnabled(true);
-        when(userRepository.findByEmail(req.email())).thenReturn(Optional.of(user));
+        when(userRepository.findByEmail("user@kaban.com")).thenReturn(Optional.of(user));
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(null);
         when(jwtUtil.generate(eq(req.email()), anyMap())).thenReturn("jwt-token");
@@ -182,6 +184,16 @@ class AuthServiceImplTest {
         when(tokenRepository.findByToken("t1")).thenReturn(Optional.of(token));
 
         assertThatThrownBy(() -> authService.verifyUser("t1"))
-                .isInstanceOf(InvalidTokenException.class);
+                .isInstanceOf(TokenExpiredException.class);
+    }
+
+    @Test
+    void login_throws_for_unverified_user() {
+        LoginRequest req = new LoginRequest("user@kaban.com", "Password123!");
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenThrow(new DisabledException("disabled"));
+
+        assertThatThrownBy(() -> authService.login(req))
+                .isInstanceOf(EmailNotVerifiedException.class);
     }
 }

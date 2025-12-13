@@ -50,7 +50,7 @@ public class UserAccount implements UserDetails {
     private boolean active = true;
 
     // Indicates whether the user has verified their email address.
-    @Column(name = "enabled", nullable = false, columnDefinition = "boolean default false")
+    @Column(name = "enabled", nullable = false)
     @ColumnDefault("false")
     private boolean enabled = false;
 

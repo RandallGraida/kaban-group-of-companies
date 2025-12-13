@@ -1,6 +1,8 @@
 package com.example.auth_service.controller;
 
+import com.example.auth_service.exception.EmailNotVerifiedException;
 import com.example.auth_service.exception.InvalidTokenException;
+import com.example.auth_service.exception.TokenExpiredException;
 import com.example.auth_service.exception.UserAlreadyExistsException;
 import java.time.Instant;
 import org.springframework.http.HttpStatus;
@@ -29,10 +31,21 @@ public class AuthExceptionHandler {
                 .body(new ErrorResponse(400, ex.getMessage(), Instant.now().toString()));
     }
 
+    @ExceptionHandler(TokenExpiredException.class)
+    public ResponseEntity<ErrorResponse> handleExpiredToken(TokenExpiredException ex) {
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body(new ErrorResponse(410, ex.getMessage(), Instant.now().toString()));
+    }
+
+    @ExceptionHandler(EmailNotVerifiedException.class)
+    public ResponseEntity<ErrorResponse> handleEmailNotVerified(EmailNotVerifiedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ErrorResponse(403, ex.getMessage(), Instant.now().toString()));
+    }
+
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleBadCredentials(BadCredentialsException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(new ErrorResponse(401, ex.getMessage(), Instant.now().toString()));
     }
 }
-

@@ -48,10 +48,10 @@ class AuthControllerTest {
     @Test
     void signup_returns_200_and_token() throws Exception {
         RegistrationResponse response = new RegistrationResponse("Registration successful. Please verify your email.");
-        when(authService.registerUser(new RegistrationRequest("test@kaban.com", "Password123!")))
+        when(authService.registerUser(new RegistrationRequest("test@kaban.com", "Password123!", "Jane", "Doe")))
                 .thenReturn(response);
 
-        RegistrationRequest req = new RegistrationRequest("test@kaban.com", "Password123!");
+        RegistrationRequest req = new RegistrationRequest("test@kaban.com", "Password123!", "Jane", "Doe");
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -80,7 +80,7 @@ class AuthControllerTest {
     @Test
     void signup_returns_400_on_invalid_payload() throws Exception {
         String badPayload = """
-                {"email":"","password":"short"}
+                {"email":"","password":"short","firstName":"","lastName":""}
                 """;
 
         mockMvc.perform(post("/api/auth/register")

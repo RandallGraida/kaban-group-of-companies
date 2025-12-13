@@ -109,4 +109,31 @@ describe('SignupPageComponent', () => {
 
     expect(authSpy.signup).not.toHaveBeenCalled();
   });
+
+  it('blocks submit when password lacks required complexity', async () => {
+    const authSpy = { signup: vi.fn(() => of({ message: 'ok' })) } as unknown as AuthService;
+
+    await TestBed.configureTestingModule({
+      imports: [SignupPageComponent],
+      providers: [
+        provideRouter([]),
+        { provide: AuthService, useValue: authSpy },
+        { provide: ToastService, useValue: toastSpy },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(SignupPageComponent);
+    const component = fixture.componentInstance;
+
+    component.form.setValue({
+      email: 'user@example.com',
+      password: 'Password123', // missing symbol
+      firstName: 'Jane',
+      lastName: 'Doe',
+    });
+
+    component.onSubmit();
+
+    expect(authSpy.signup).not.toHaveBeenCalled();
+  });
 });

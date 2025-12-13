@@ -5,7 +5,9 @@ import com.example.auth_service.dto.LoginRequest;
 import com.example.auth_service.dto.RegistrationRequest;
 import com.example.auth_service.dto.RegistrationResponse;
 import com.example.auth_service.dto.SignupRequest;
+import com.example.auth_service.exception.EmailNotVerifiedException;
 import com.example.auth_service.exception.InvalidTokenException;
+import com.example.auth_service.exception.TokenExpiredException;
 import com.example.auth_service.exception.UserAlreadyExistsException;
 import com.example.auth_service.model.UserAccount;
 import com.example.auth_service.model.VerificationToken;
@@ -51,12 +53,13 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public RegistrationResponse registerUser(RegistrationRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
-            throw new UserAlreadyExistsException("Email already registered");
+        String normalizedEmail = request.email().trim().toLowerCase();
+        if (userRepository.existsByEmail(normalizedEmail)) {
+            throw new UserAlreadyExistsException("Unable to register with provided credentials");
         }
 
         UserAccount user = new UserAccount();
-        user.setEmail(request.email());
+        user.setEmail(normalizedEmail);
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setEnabled(false);
         userRepository.save(user);
@@ -85,7 +88,7 @@ public class AuthServiceImpl implements AuthService {
         VerificationToken verificationToken = tokenRepository.findByToken(token)
                 .orElseThrow(() -> new InvalidTokenException("Invalid verification token"));
         if (verificationToken.isExpired()) {
-            throw new InvalidTokenException("Verification token has expired");
+            throw new TokenExpiredException("Verification token has expired");
         }
 
         UserAccount user = verificationToken.getUser();
@@ -103,7 +106,12 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public RegistrationResponse signup(SignupRequest request) {
-        return registerUser(new RegistrationRequest(request.email(), request.password()));
+        return registerUser(new RegistrationRequest(
+                request.email(),
+                request.password(),
+                request.firstName(),
+                request.lastName()
+        ));
     }
 
     /**
@@ -115,15 +123,16 @@ public class AuthServiceImpl implements AuthService {
      */
     @Override
     public AuthResponse login(LoginRequest request) {
+        String normalizedEmail = request.email().trim().toLowerCase();
         try {
             authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.email(), request.password())
+                    new UsernamePasswordAuthenticationToken(normalizedEmail, request.password())
             );
         } catch (DisabledException e) {
-            throw new BadCredentialsException("Email not verified");
+            throw new EmailNotVerifiedException("Email not verified");
         }
 
-        UserAccount user = userRepository.findByEmail(request.email())
+        UserAccount user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
         if (!user.isActive()) {
             throw new BadCredentialsException("User is inactive");
