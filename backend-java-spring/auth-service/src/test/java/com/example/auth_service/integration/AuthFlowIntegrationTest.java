@@ -9,12 +9,14 @@ import com.example.auth_service.dto.LoginRequest;
 import com.example.auth_service.dto.SignupRequest;
 import com.example.auth_service.AuthServiceApplication;
 import com.example.auth_service.model.VerificationToken;
+import com.example.auth_service.repository.UserAccountRepository;
 import com.example.auth_service.repository.VerificationTokenRepository;
 import com.example.auth_service.service.VerificationEmailSender;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
@@ -48,12 +50,29 @@ class AuthFlowIntegrationTest {
     private VerificationTokenRepository tokenRepository;
 
     @Autowired
+    private UserAccountRepository userAccountRepository;
+
+    @Autowired
     private CapturingVerificationEmailSender emailSender;
+
+    private String lastSignupEmail;
 
     @org.junit.jupiter.api.BeforeEach
     void initMockMvc() {
         emailSender.reset();
         this.mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
+    }
+
+    @AfterEach
+    void cleanup() {
+        if (lastSignupEmail == null) {
+            return;
+        }
+        tokenRepository.findAll().stream()
+                .filter(t -> t.getUser() != null && lastSignupEmail.equals(t.getUser().getEmail()))
+                .forEach(tokenRepository::delete);
+        userAccountRepository.findByEmail(lastSignupEmail).ifPresent(userAccountRepository::delete);
+        lastSignupEmail = null;
     }
 
     /**
@@ -63,6 +82,7 @@ class AuthFlowIntegrationTest {
     @Test
     void happy_path_user_verifies_then_logs_in() throws Exception {
         String email = "user_" + UUID.randomUUID() + "@example.com";
+        lastSignupEmail = email;
         SignupRequest signup = new SignupRequest(email, "Password123!", "Jane", "Doe");
 
         mockMvc.perform(post("/api/auth/signup")
@@ -91,6 +111,7 @@ class AuthFlowIntegrationTest {
     @Test
     void negative_path_unverified_user_login_returns_403() throws Exception {
         String email = "user_" + UUID.randomUUID() + "@example.com";
+        lastSignupEmail = email;
         SignupRequest signup = new SignupRequest(email, "Password123!", "Jane", "Doe");
 
         mockMvc.perform(post("/api/auth/signup")
@@ -109,6 +130,7 @@ class AuthFlowIntegrationTest {
     @Test
     void edge_case_token_expired_returns_400() throws Exception {
         String email = "user_" + UUID.randomUUID() + "@example.com";
+        lastSignupEmail = email;
         SignupRequest signup = new SignupRequest(email, "Password123!", "Jane", "Doe");
 
         mockMvc.perform(post("/api/auth/signup")
@@ -132,6 +154,7 @@ class AuthFlowIntegrationTest {
     @Test
     void edge_case_token_already_used_returns_400() throws Exception {
         String email = "user_" + UUID.randomUUID() + "@example.com";
+        lastSignupEmail = email;
         SignupRequest signup = new SignupRequest(email, "Password123!", "Jane", "Doe");
 
         mockMvc.perform(post("/api/auth/signup")

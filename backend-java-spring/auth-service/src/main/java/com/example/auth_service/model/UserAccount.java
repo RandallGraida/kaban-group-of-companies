@@ -41,9 +41,8 @@ public class UserAccount {
     private String role = "ROLE_USER";
 
     // Whether the user's email has been verified.
-    // Note: This maps to the existing `enabled` column in the database.
-    @Column(nullable = false)
-    private boolean enabled = false;
+    @Column(name = "is_verified", nullable = false)
+    private boolean verified = false;
 
     // Timestamp recorded when the user verifies their email.
     @Column(name = "email_verified_at")

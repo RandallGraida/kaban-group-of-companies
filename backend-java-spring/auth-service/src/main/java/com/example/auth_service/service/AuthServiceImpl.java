@@ -70,7 +70,7 @@ public class AuthServiceImpl implements AuthService {
         if (!user.isActive()) {
             throw new BadCredentialsException("User is inactive");
         }
-        if (!user.isEnabled()) {
+        if (!user.isVerified()) {
             // Email verification is required before issuing tokens for the account.
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Email not verified");
         }

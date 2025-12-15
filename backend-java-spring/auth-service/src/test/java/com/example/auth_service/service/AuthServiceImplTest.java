@@ -95,7 +95,7 @@ class AuthServiceImplTest {
         user.setEmail(req.email());
         user.setPasswordHash("hashed");
         user.setActive(true);
-        user.setEnabled(true);
+        user.setVerified(true);
         when(userRepository.findByEmail(req.email())).thenReturn(Optional.of(user));
         when(passwordEncoder.matches(req.password(), "hashed")).thenReturn(true);
         when(jwtUtil.generate(eq(req.email()), anyMap())).thenReturn("jwt-token");
@@ -116,7 +116,7 @@ class AuthServiceImplTest {
         user.setEmail(req.email());
         user.setPasswordHash("hashed");
         user.setActive(false);
-        user.setEnabled(true);
+        user.setVerified(true);
         when(userRepository.findByEmail(req.email())).thenReturn(Optional.of(user));
 
         assertThatThrownBy(() -> authService.login(req))
@@ -130,7 +130,7 @@ class AuthServiceImplTest {
         user.setEmail(req.email());
         user.setPasswordHash("hashed");
         user.setActive(true);
-        user.setEnabled(false);
+        user.setVerified(false);
         when(userRepository.findByEmail(req.email())).thenReturn(Optional.of(user));
 
         assertThatThrownBy(() -> authService.login(req))
@@ -146,7 +146,7 @@ class AuthServiceImplTest {
         user.setEmail(req.email());
         user.setPasswordHash("hashed");
         user.setActive(true);
-        user.setEnabled(true);
+        user.setVerified(true);
         when(userRepository.findByEmail(req.email())).thenReturn(Optional.of(user));
         when(passwordEncoder.matches(req.password(), "hashed")).thenReturn(false);
 

@@ -37,7 +37,7 @@ public class EmailVerificationService {
      */
     @Transactional
     public void sendInitialVerificationEmail(UserAccount user) {
-        if (user.isEnabled()) {
+        if (user.isVerified()) {
             return;
         }
         upsertTokenAndSend(user);
@@ -51,7 +51,7 @@ public class EmailVerificationService {
     @Transactional
     public void resendVerificationEmail(String email) {
         UserAccount user = userRepository.findByEmail(email).orElse(null);
-        if (user == null || user.isEnabled()) {
+        if (user == null || user.isVerified()) {
             return;
         }
         upsertTokenAndSend(user);
@@ -80,8 +80,8 @@ public class EmailVerificationService {
         }
 
         UserAccount user = token.getUser();
-        if (!user.isEnabled()) {
-            user.setEnabled(true);
+        if (!user.isVerified()) {
+            user.setVerified(true);
             user.setEmailVerifiedAt(Instant.now());
             userRepository.save(user);
         }
