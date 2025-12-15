@@ -21,6 +21,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -56,6 +58,32 @@ class AuthFlowIntegrationTest {
     private CapturingVerificationEmailSender emailSender;
 
     private String lastSignupEmail;
+
+    @DynamicPropertySource
+    static void postgresProperties(DynamicPropertyRegistry registry) {
+        String testDbUrl = firstNonBlank(System.getProperty("TEST_DB_URL"), System.getenv("TEST_DB_URL"));
+        String dbUsername = firstNonBlank(System.getProperty("DB_USERNAME"), System.getenv("DB_USERNAME"));
+        String dbPassword = firstNonBlank(System.getProperty("DB_PASSWORD"), System.getenv("DB_PASSWORD"));
+
+        registry.add("spring.datasource.url",
+                () -> testDbUrl != null ? testDbUrl : "jdbc:postgresql://localhost:5432/auth_service_db");
+        registry.add("spring.datasource.username", () -> dbUsername != null ? dbUsername : "randall");
+        registry.add("spring.datasource.password", () -> dbPassword != null ? dbPassword : "");
+        registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "update");
+        registry.add("spring.sql.init.mode", () -> "always");
+        registry.add("spring.sql.init.continue-on-error", () -> "true");
+    }
+
+    private static String firstNonBlank(String a, String b) {
+        if (a != null && !a.isBlank()) {
+            return a;
+        }
+        if (b != null && !b.isBlank()) {
+            return b;
+        }
+        return null;
+    }
 
     @org.junit.jupiter.api.BeforeEach
     void initMockMvc() {

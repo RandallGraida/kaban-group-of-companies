@@ -1,8 +1,10 @@
+# Test profile should use PostgreSQL as well.
 spring.datasource.url=${TEST_DB_URL:jdbc:postgresql://localhost:5432/auth_service_db}
+spring.datasource.username=${DB_USERNAME:postgres}
+spring.datasource.password=${DB_PASSWORD:change-me}
 spring.datasource.driver-class-name=org.postgresql.Driver
-spring.datasource.username=${DB_USERNAME:randall}
-spring.datasource.password=${DB_PASSWORD:MobyDick_@KabanKaarawanAbril222005}
+
 spring.jpa.hibernate.ddl-auto=update
-spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
 spring.sql.init.mode=always
 spring.sql.init.continue-on-error=true
+

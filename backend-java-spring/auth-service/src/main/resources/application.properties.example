@@ -4,14 +4,20 @@ spring.application.name=auth-service
 server.port=${SERVER_PORT:8080}
 spring.profiles.active=${SPRING_PROFILES_ACTIVE:development}
 
-# PostgreSQL (override in env; defaults are for local dev)
+# PostgreSQL (set via env vars or a local untracked application.properties)
 spring.datasource.url=${DB_URL:jdbc:postgresql://localhost:5432/auth_service_db}
-spring.datasource.username=${DB_USERNAME:randall}
-spring.datasource.password=${DB_PASSWORD:MobyDick_@KabanKaarawanAbril222005}
+spring.datasource.username=${DB_USERNAME:postgres}
+spring.datasource.password=${DB_PASSWORD:change-me}
 spring.datasource.driver-class-name=org.postgresql.Driver
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
 
-# JWT (override secrets in env; defaults are placeholders)
+# JPA
+spring.jpa.hibernate.ddl-auto=update
+
+# Run local schema alignment script (see schema.sql)
+spring.sql.init.mode=always
+spring.sql.init.continue-on-error=true
+
+# JWT (override in env)
 app.jwt.secret=${JWT_SECRET:change-this-secret}
 app.jwt.expiration=${JWT_EXPIRATION:PT1H}
+
