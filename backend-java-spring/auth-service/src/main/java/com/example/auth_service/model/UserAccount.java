@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import java.time.Instant;
 import lombok.Data;
 
 /**
@@ -38,6 +39,23 @@ public class UserAccount {
     @NotBlank
     @Column(nullable = false)
     private String role = "ROLE_USER";
+
+    // Whether the user's email has been verified.
+    // Note: This maps to the existing `enabled` column in the database.
+    @Column(nullable = false)
+    private boolean enabled = false;
+
+    // Timestamp recorded when the user verifies their email.
+    @Column(name = "email_verified_at")
+    private Instant emailVerifiedAt;
+
+    // Used to support resend verification email throttling.
+    @Column(name = "email_verification_last_sent_at")
+    private Instant emailVerificationLastSentAt;
+
+    // Rolling counter for verification email sends (implementation-defined window).
+    @Column(name = "email_verification_send_count_24h", nullable = false, columnDefinition = "integer default 0")
+    private int emailVerificationSendCount24h = 0;
 
     // A flag indicating whether the user account is active.
     @Column(name = "is_active", nullable = false)

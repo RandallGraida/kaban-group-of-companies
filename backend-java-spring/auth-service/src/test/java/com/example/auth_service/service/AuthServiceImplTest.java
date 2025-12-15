@@ -11,6 +11,7 @@ import static org.mockito.ArgumentMatchers.anyMap;
 
 import com.example.auth_service.dto.AuthResponse;
 import com.example.auth_service.dto.LoginRequest;
+import com.example.auth_service.dto.MessageResponse;
 import com.example.auth_service.dto.SignupRequest;
 import com.example.auth_service.model.UserAccount;
 import com.example.auth_service.repository.UserAccountRepository;
@@ -21,9 +22,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Unit tests for the {@link AuthServiceImpl}.
@@ -42,6 +45,9 @@ class AuthServiceImplTest {
     @Mock
     private JwtUtil jwtUtil;
 
+    @Mock
+    private EmailVerificationService emailVerificationService;
+
     @InjectMocks
     private AuthServiceImpl authService;
 
@@ -50,26 +56,23 @@ class AuthServiceImplTest {
         final AutoCloseable autoCloseable = MockitoAnnotations.openMocks(this);
     }
 
-    // Tests that a new user is created successfully and a token is returned.
+    // Tests that a new user is created successfully and a verification email is triggered.
     @Test
-    void signup_creates_user_and_returns_token() {
+    void signup_creates_user_and_returns_message() {
         SignupRequest req = new SignupRequest("new@kaban.com", "Password123!", "New", "User");
         when(userRepository.existsByEmail(req.email())).thenReturn(false);
         when(passwordEncoder.encode(req.password())).thenReturn("hashed");
-        when(jwtUtil.generate(eq(req.email()), anyMap())).thenReturn("jwt-token");
-        when(jwtUtil.expiresAt()).thenReturn(java.time.Instant.now().plusSeconds(3600));
         when(userRepository.save(any(UserAccount.class))).thenAnswer(invocation -> {
             UserAccount u = invocation.getArgument(0);
             u.setId("id-1");
             return u;
         });
 
-        AuthResponse res = authService.signup(req);
+        MessageResponse res = authService.signup(req);
 
-        assertThat(res.token()).isEqualTo("jwt-token");
-        assertThat(res.role()).isEqualTo("ROLE_USER");
-        assertThat(res.expiresAt()).isNotBlank();
+        assertThat(res.message()).containsIgnoringCase("verification");
         verify(userRepository).save(any(UserAccount.class));
+        verify(emailVerificationService).sendInitialVerificationEmail(any(UserAccount.class));
     }
 
     // Tests that an exception is thrown when trying to sign up with an email that already exists.
@@ -92,6 +95,7 @@ class AuthServiceImplTest {
         user.setEmail(req.email());
         user.setPasswordHash("hashed");
         user.setActive(true);
+        user.setEnabled(true);
         when(userRepository.findByEmail(req.email())).thenReturn(Optional.of(user));
         when(passwordEncoder.matches(req.password(), "hashed")).thenReturn(true);
         when(jwtUtil.generate(eq(req.email()), anyMap())).thenReturn("jwt-token");
@@ -112,10 +116,26 @@ class AuthServiceImplTest {
         user.setEmail(req.email());
         user.setPasswordHash("hashed");
         user.setActive(false);
+        user.setEnabled(true);
         when(userRepository.findByEmail(req.email())).thenReturn(Optional.of(user));
 
         assertThatThrownBy(() -> authService.login(req))
                 .isInstanceOf(BadCredentialsException.class);
+    }
+
+    @Test
+    void login_rejects_unverified_user_with_403() {
+        LoginRequest req = new LoginRequest("user@kaban.com", "Password123!");
+        UserAccount user = new UserAccount();
+        user.setEmail(req.email());
+        user.setPasswordHash("hashed");
+        user.setActive(true);
+        user.setEnabled(false);
+        when(userRepository.findByEmail(req.email())).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> authService.login(req))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN));
     }
 
     // Tests that a login attempt with a bad password is rejected.
@@ -126,6 +146,7 @@ class AuthServiceImplTest {
         user.setEmail(req.email());
         user.setPasswordHash("hashed");
         user.setActive(true);
+        user.setEnabled(true);
         when(userRepository.findByEmail(req.email())).thenReturn(Optional.of(user));
         when(passwordEncoder.matches(req.password(), "hashed")).thenReturn(false);
 
