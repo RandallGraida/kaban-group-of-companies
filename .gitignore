@@ -1,37 +1,8 @@
-### IDE / editor
 .idea/
-*.iml
 .vscode/
 
-### OS
-.DS_Store
-Thumbs.db
+# Spring Boot config (keep real secrets out of git)
+**/src/main/resources/application.properties
 
-### Build output
+# Build output
 **/target/
-**/dist/
-**/node_modules/
-**/.angular/
-
-### Test/build reports
-**/surefire-reports/
-**/failsafe-reports/
-**/target/**/*.xml
-
-### Local configuration (do not commit)
-**/src/**/resources/application*.properties
-**/src/**/resources/application*.yml
-**/src/**/resources/application*.yaml
-!**/src/**/resources/application*.properties.example
-!**/src/**/resources/application*.yml.example
-!**/src/**/resources/application*.yaml.example
-
-### Local overrides / secrets (never commit)
-**/src/**/resources/application*.local.properties
-**/src/**/resources/application*.local.yml
-**/src/**/resources/application*.local.yaml
-.env
-.env.*
-
-### Agent-specific local instructions
-**/AGENTS.md

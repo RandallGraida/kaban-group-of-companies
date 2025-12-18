@@ -6,7 +6,7 @@ import { HeaderComponent } from '../../../components/common/header/header.compon
   imports: [HeaderComponent],
   selector: 'app-landing-page',
   template: `
-    <app-header />
+    <app-header></app-header>
     <main class="min-h-screen bg-slate-50 text-slate-900">
       <section class="mx-auto max-w-5xl px-6 py-12">
         <div class="rounded-2xl bg-white p-10 shadow-lg">

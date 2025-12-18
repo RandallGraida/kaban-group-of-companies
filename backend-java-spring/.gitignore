@@ -5,6 +5,10 @@ target/
 !**/src/test/**/target/
 cursor-codex-rules/
 
+# Spring Boot config (keep local/prod secrets out of git)
+**/src/main/resources/application*.properties
+!**/src/main/resources/application*.example.properties
+
 ### STS ###
 .apt_generated
 .classpath

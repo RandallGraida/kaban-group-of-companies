@@ -8,8 +8,13 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import lombok.Data;
+import org.hibernate.annotations.ColumnDefault;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 /**
  * Represents a user account in the system.
@@ -18,7 +23,7 @@ import lombok.Data;
 @Data
 @Entity
 @Table(name = "users")
-public class UserAccount {
+public class UserAccount implements UserDetails {
     // The unique identifier for the user account.
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -40,23 +45,47 @@ public class UserAccount {
     @Column(nullable = false)
     private String role = "ROLE_USER";
 
-    // Whether the user's email has been verified.
-    @Column(name = "is_verified", nullable = false)
-    private boolean verified = false;
-
-    // Timestamp recorded when the user verifies their email.
-    @Column(name = "email_verified_at")
-    private Instant emailVerifiedAt;
-
-    // Used to support resend verification email throttling.
-    @Column(name = "email_verification_last_sent_at")
-    private Instant emailVerificationLastSentAt;
-
-    // Rolling counter for verification email sends (implementation-defined window).
-    @Column(name = "email_verification_send_count_24h", nullable = false, columnDefinition = "integer default 0")
-    private int emailVerificationSendCount24h = 0;
-
     // A flag indicating whether the user account is active.
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
+
+    // Indicates whether the user has verified their email address.
+    @Column(name = "enabled", nullable = false)
+    @ColumnDefault("false")
+    private boolean enabled = false;
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority(role));
+    }
+
+    @Override
+    public String getPassword() {
+        return passwordHash;
+    }
+
+    @Override
+    public String getUsername() {
+        return email;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return enabled;
+    }
 }

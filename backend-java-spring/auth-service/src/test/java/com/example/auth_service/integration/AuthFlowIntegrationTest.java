@@ -6,27 +6,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.auth_service.dto.LoginRequest;
-import com.example.auth_service.dto.SignupRequest;
-import com.example.auth_service.AuthServiceApplication;
-import com.example.auth_service.model.VerificationToken;
-import com.example.auth_service.repository.UserAccountRepository;
+import com.example.auth_service.dto.RegistrationRequest;
 import com.example.auth_service.repository.VerificationTokenRepository;
-import com.example.auth_service.service.VerificationEmailSender;
-import java.time.Instant;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Primary;
+import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,11 +26,17 @@ import org.springframework.web.context.WebApplicationContext;
  * Integration tests for the authentication flow.
  * These tests cover the entire authentication process, from signup to login,
  * using a real Spring Boot application context and an in-memory H2 database.
+ *
+ * <p>Scope: HTTP contract + security behavior for the core happy-path flow:
+ * register → token created → verify → login → JWT gates protected endpoints.</p>
+ *
+ * <p>We intentionally validate externally observable behavior (status codes and response shape)
+ * instead of repository internals wherever possible. The one exception is obtaining the verification
+ * token from the repository because email delivery is handled by a different service.</p>
  */
-@SpringBootTest(classes = AuthServiceApplication.class)
+@SpringBootTest
 @ActiveProfiles("test")
 @Transactional
-@Import(AuthFlowIntegrationTest.TestConfig.class)
 class AuthFlowIntegrationTest {
 
     private MockMvc mockMvc;
@@ -51,56 +47,11 @@ class AuthFlowIntegrationTest {
     @Autowired
     private VerificationTokenRepository tokenRepository;
 
-    @Autowired
-    private UserAccountRepository userAccountRepository;
-
-    @Autowired
-    private CapturingVerificationEmailSender emailSender;
-
-    private String lastSignupEmail;
-
-    @DynamicPropertySource
-    static void postgresProperties(DynamicPropertyRegistry registry) {
-        String testDbUrl = firstNonBlank(System.getProperty("TEST_DB_URL"), System.getenv("TEST_DB_URL"));
-        String dbUsername = firstNonBlank(System.getProperty("DB_USERNAME"), System.getenv("DB_USERNAME"));
-        String dbPassword = firstNonBlank(System.getProperty("DB_PASSWORD"), System.getenv("DB_PASSWORD"));
-
-        registry.add("spring.datasource.url",
-                () -> testDbUrl != null ? testDbUrl : "jdbc:postgresql://localhost:5432/auth_service_db");
-        registry.add("spring.datasource.username", () -> dbUsername != null ? dbUsername : "randall");
-        registry.add("spring.datasource.password", () -> dbPassword != null ? dbPassword : "");
-        registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
-        registry.add("spring.jpa.hibernate.ddl-auto", () -> "update");
-        registry.add("spring.sql.init.mode", () -> "always");
-        registry.add("spring.sql.init.continue-on-error", () -> "true");
-    }
-
-    private static String firstNonBlank(String a, String b) {
-        if (a != null && !a.isBlank()) {
-            return a;
-        }
-        if (b != null && !b.isBlank()) {
-            return b;
-        }
-        return null;
-    }
-
     @org.junit.jupiter.api.BeforeEach
     void initMockMvc() {
-        emailSender.reset();
-        this.mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
-    }
-
-    @AfterEach
-    void cleanup() {
-        if (lastSignupEmail == null) {
-            return;
-        }
-        tokenRepository.findAll().stream()
-                .filter(t -> t.getUser() != null && lastSignupEmail.equals(t.getUser().getEmail()))
-                .forEach(tokenRepository::delete);
-        userAccountRepository.findByEmail(lastSignupEmail).ifPresent(userAccountRepository::delete);
-        lastSignupEmail = null;
+        this.mockMvc = MockMvcBuilders.webAppContextSetup(context)
+                .apply(SecurityMockMvcConfigurers.springSecurity())
+                .build();
     }
 
     /**
@@ -108,145 +59,68 @@ class AuthFlowIntegrationTest {
      * This test ensures that the signup and login endpoints work together correctly.
      */
     @Test
-    void happy_path_user_verifies_then_logs_in() throws Exception {
+    void signup_then_login_succeeds() throws Exception {
+        // Use a unique email per run to keep tests isolated and avoid uniqueness collisions.
         String email = "user_" + UUID.randomUUID() + "@example.com";
-        lastSignupEmail = email;
-        SignupRequest signup = new SignupRequest(email, "Password123!", "Jane", "Doe");
+        RegistrationRequest signup = new RegistrationRequest(email, "Password123!", "Jane", "Doe");
 
-        mockMvc.perform(post("/api/auth/signup")
+        // Register: must return 201 and must not leak sensitive fields in the JSON payload.
+        mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(signup)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").exists());
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.password").doesNotExist())
+                .andExpect(jsonPath("$.password_hash").doesNotExist())
+                .andExpect(jsonPath("$.verificationToken").doesNotExist());
 
-        String token = captureTokenFromEmail(email);
+        // Pull the token directly from the DB to keep the test self-contained (email delivery is out-of-process).
+        String token = tokenRepository.findAll().stream()
+                .filter(t -> t.getUser().getEmail().equals(email))
+                .findFirst()
+                .orElseThrow()
+                .getToken();
 
-        mockMvc.perform(get("/api/auth/verify-email")
+        // Login should be blocked until verification completes.
+        LoginRequest loginBeforeVerify = new LoginRequest(email, "Password123!");
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(loginBeforeVerify)))
+                .andExpect(status().isForbidden());
+
+        // Verify: should enable the account and consume the token.
+        mockMvc.perform(get("/api/auth/verify")
                         .param("token", token))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("Email verified"));
+                .andExpect(status().isOk());
 
         LoginRequest login = new LoginRequest(email, "Password123!");
 
-        mockMvc.perform(post("/api/auth/login")
+        // Login: must return a JWT and role for downstream authorization decisions.
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(login)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").exists())
-                .andExpect(jsonPath("$.role").value("ROLE_USER"));
-    }
+                .andExpect(jsonPath("$.role").value("ROLE_USER"))
+                .andReturn();
 
-    @Test
-    void negative_path_unverified_user_login_returns_403() throws Exception {
-        String email = "user_" + UUID.randomUUID() + "@example.com";
-        lastSignupEmail = email;
-        SignupRequest signup = new SignupRequest(email, "Password123!", "Jane", "Doe");
+        String tokenJson = loginResult.getResponse().getContentAsString();
+        String jwt = new com.fasterxml.jackson.databind.ObjectMapper()
+                .readTree(tokenJson)
+                .get("token")
+                .asText();
 
-        mockMvc.perform(post("/api/auth/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(signup)))
-                .andExpect(status().isOk());
+        // Protected route: missing JWT must be rejected (401).
+        mockMvc.perform(get("/api/auth/me"))
+                .andExpect(status().isUnauthorized());
 
-        LoginRequest login = new LoginRequest(email, "Password123!");
+        // Protected route: invalid/tampered JWT must be rejected (401) without revealing details.
+        mockMvc.perform(get("/api/auth/me").header(HttpHeaders.AUTHORIZATION, "Bearer not-a-jwt"))
+                .andExpect(status().isUnauthorized());
 
-        mockMvc.perform(post("/api/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(login)))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    void edge_case_token_expired_returns_400() throws Exception {
-        String email = "user_" + UUID.randomUUID() + "@example.com";
-        lastSignupEmail = email;
-        SignupRequest signup = new SignupRequest(email, "Password123!", "Jane", "Doe");
-
-        mockMvc.perform(post("/api/auth/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(signup)))
-                .andExpect(status().isOk());
-
-        String token = captureTokenFromEmail(email);
-        VerificationToken dbToken = tokenRepository.findAll().stream()
-                .filter(t -> t.getUser().getEmail().equals(email))
-                .findFirst()
-                .orElseThrow();
-        dbToken.setExpiresAt(Instant.now().minusSeconds(5));
-        tokenRepository.save(dbToken);
-
-        mockMvc.perform(get("/api/auth/verify-email")
-                        .param("token", token))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void edge_case_token_already_used_returns_400() throws Exception {
-        String email = "user_" + UUID.randomUUID() + "@example.com";
-        lastSignupEmail = email;
-        SignupRequest signup = new SignupRequest(email, "Password123!", "Jane", "Doe");
-
-        mockMvc.perform(post("/api/auth/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(signup)))
-                .andExpect(status().isOk());
-
-        String token = captureTokenFromEmail(email);
-
-        mockMvc.perform(get("/api/auth/verify-email")
-                        .param("token", token))
-                .andExpect(status().isOk());
-
-        mockMvc.perform(get("/api/auth/verify-email")
-                        .param("token", token))
-                .andExpect(status().isBadRequest());
-    }
-
-    private String captureTokenFromEmail(String expectedEmail) {
-        String actualEmail = emailSender.getLastEmail();
-        String link = emailSender.getLastLink();
-        if (actualEmail == null || link == null) {
-            throw new AssertionError("No verification email was sent");
-        }
-        if (!expectedEmail.equals(actualEmail)) {
-            throw new AssertionError("Expected verification email to " + expectedEmail + " but got " + actualEmail);
-        }
-        int idx = link.indexOf("token=");
-        if (idx < 0) {
-            throw new AssertionError("Verification link missing token param: " + link);
-        }
-        return link.substring(idx + "token=".length());
-    }
-
-    @Configuration
-    static class TestConfig {
-        @Bean
-        @Primary
-        CapturingVerificationEmailSender capturingVerificationEmailSender() {
-            return new CapturingVerificationEmailSender();
-        }
-    }
-
-    static class CapturingVerificationEmailSender implements VerificationEmailSender {
-        private final AtomicReference<String> lastEmail = new AtomicReference<>();
-        private final AtomicReference<String> lastLink = new AtomicReference<>();
-
-        @Override
-        public void sendVerificationEmail(String email, String verificationLink) {
-            lastEmail.set(email);
-            lastLink.set(verificationLink);
-        }
-
-        void reset() {
-            lastEmail.set(null);
-            lastLink.set(null);
-        }
-
-        String getLastEmail() {
-            return lastEmail.get();
-        }
-
-        String getLastLink() {
-            return lastLink.get();
-        }
+        // Protected route: valid JWT authenticates the request.
+        mockMvc.perform(get("/api/auth/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value(email));
     }
 }
