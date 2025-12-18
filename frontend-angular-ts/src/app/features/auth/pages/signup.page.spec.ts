@@ -46,7 +46,12 @@ describe('SignupPageComponent', () => {
     component.onSubmit();
 
     expect(authSpy.signup).toHaveBeenCalled();
-    expect(navigateSpy).toHaveBeenCalledWith('/auth/login');
+    expect(navigateSpy).toHaveBeenCalledWith(
+      '/auth/login',
+      expect.objectContaining({
+        state: expect.objectContaining({ signupSuccess: true, email: 'user@example.com' }),
+      }),
+    );
   });
 
   /**

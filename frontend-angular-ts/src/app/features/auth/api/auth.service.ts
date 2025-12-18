@@ -59,7 +59,16 @@ export class AuthService {
    * @returns An observable of the registration response.
    */
   signup(request: SignupDto): Observable<RegistrationResponse> {
-    return this.http.post<RegistrationResponse>('/api/auth/register', request);
+    return this.http.post<RegistrationResponse>('/api/auth/signup', request);
+  }
+
+  /**
+   * Requests a new verification email for an existing, unverified account.
+   * @param email Email address to (re)verify.
+   * @returns An observable of a generic message response.
+   */
+  resendVerification(email: string): Observable<RegistrationResponse> {
+    return this.http.post<RegistrationResponse>('/api/auth/resend-verification', { email });
   }
 
   /**
