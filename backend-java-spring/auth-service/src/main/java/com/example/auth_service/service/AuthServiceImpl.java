@@ -61,13 +61,16 @@ public class AuthServiceImpl implements AuthService {
         UserAccount user = new UserAccount();
         user.setEmail(normalizedEmail);
         user.setPasswordHash(passwordEncoder.encode(request.password()));
-        user.setEnabled(false);
+        user.setVerified(false);
         userRepository.save(user);
 
         String tokenValue = UUID.randomUUID().toString();
         VerificationToken token = new VerificationToken();
         token.setToken(tokenValue);
         token.setUser(user);
+        token.setCreatedAt(Instant.now());
+        token.setConsumedAt(null);
+        token.setRevokedAt(null);
         token.setExpiryDate(Instant.now().plusSeconds(24 * 60 * 60));
         tokenRepository.save(token);
 
@@ -87,14 +90,21 @@ public class AuthServiceImpl implements AuthService {
     public void verifyUser(String token) {
         VerificationToken verificationToken = tokenRepository.findByToken(token)
                 .orElseThrow(() -> new InvalidTokenException("Invalid verification token"));
+
+        if (verificationToken.getConsumedAt() != null || verificationToken.getRevokedAt() != null) {
+            throw new InvalidTokenException("Invalid verification token");
+        }
         if (verificationToken.isExpired()) {
             throw new TokenExpiredException("Verification token has expired");
         }
 
         UserAccount user = verificationToken.getUser();
-        user.setEnabled(true);
+        user.setVerified(true);
+        user.setEmailVerifiedAt(Instant.now());
         userRepository.save(user);
-        tokenRepository.delete(verificationToken);
+
+        verificationToken.setConsumedAt(Instant.now());
+        tokenRepository.save(verificationToken);
     }
 
     /**

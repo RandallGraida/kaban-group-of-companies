@@ -30,6 +30,15 @@ public class VerificationToken {
     @Column(name = "expiry_date", nullable = false)
     private Instant expiryDate;
 
+    @Column(name = "created_at")
+    private Instant createdAt;
+
+    @Column(name = "consumed_at")
+    private Instant consumedAt;
+
+    @Column(name = "revoked_at")
+    private Instant revokedAt;
+
     @OneToOne
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private UserAccount user;
