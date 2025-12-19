@@ -1,0 +1,78 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: kaban-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: randall
+      POSTGRES_PASSWORD: MobyDick_@KabanKaarawanAbril222005
+      POSTGRES_DB: auth_service_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U randall -d auth_service_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kaban-network
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
+    container_name: kaban-auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      SERVER_PORT: 8081
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/auth_service_db
+      SPRING_DATASOURCE_USERNAME: randall
+      SPRING_DATASOURCE_PASSWORD: MobyDick_@KabanKaarawanAbril222005
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      NOTIFICATION_SERVICE_BASE_URL: http://notification-service:8084
+      APP_FRONTEND_URL: http://localhost:4200
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
+    depends_on:
+      postgres:
+        condition: service_healthy
+      notification-service:
+        condition: service_started
+    networks:
+      - kaban-network
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: notification-service/Dockerfile
+    container_name: kaban-notification-service
+    ports:
+      - "8084:8084"
+    environment:
+      SERVER_PORT: 8084
+      SPRING_MAIL_HOST: mailhog
+      SPRING_MAIL_PORT: 1025
+      APP_AUTH_BASE_URL: http://localhost:8081
+    depends_on:
+      mailhog:
+        condition: service_started
+    networks:
+      - kaban-network
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: kaban-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - kaban-network
+
+networks:
+  kaban-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
