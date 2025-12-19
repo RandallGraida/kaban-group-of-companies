@@ -28,6 +28,29 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles attempts to register a user that already exists.
+     *
+     * @param ex the thrown exception
+     * @return a 409 response with the error message
+     */
+    @ExceptionHandler(com.example.auth_service.exception.UserAlreadyExistsException.class)
+    public ResponseEntity<MessageResponse> handleUserAlreadyExists(com.example.auth_service.exception.UserAlreadyExistsException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new MessageResponse(ex.getMessage()));
+    }
+
+    /**
+     * Catch-all handler for unexpected errors.
+     *
+     * @param ex the thrown exception
+     * @return a 500 response with the error message
+     */
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<MessageResponse> handleGeneralException(Exception ex) {
+        ex.printStackTrace(); // Log to console
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new MessageResponse("Internal Error: " + ex.getMessage()));
+    }
+
+    /**
      * Handles authentication failures (e.g., invalid password, inactive account).
      *
      * <p>Returns 401 to indicate the client must authenticate with valid credentials. If you add
