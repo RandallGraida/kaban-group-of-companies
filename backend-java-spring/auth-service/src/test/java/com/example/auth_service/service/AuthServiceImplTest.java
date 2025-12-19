@@ -8,14 +8,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyMap;
-
 import com.example.auth_service.dto.AuthResponse;
 import com.example.auth_service.dto.LoginRequest;
 import com.example.auth_service.dto.RegistrationRequest;
 import com.example.auth_service.dto.RegistrationResponse;
-import com.example.auth_service.dto.SignupRequest;
 import com.example.auth_service.exception.EmailNotVerifiedException;
-import com.example.auth_service.exception.InvalidTokenException;
 import com.example.auth_service.exception.TokenExpiredException;
 import com.example.auth_service.exception.UserAlreadyExistsException;
 import com.example.auth_service.model.UserAccount;
@@ -69,7 +66,7 @@ class AuthServiceImplTest {
 
     @BeforeEach
     void setup() {
-        final AutoCloseable autoCloseable = MockitoAnnotations.openMocks(this);
+        MockitoAnnotations.openMocks(this);
     }
 
     /**
