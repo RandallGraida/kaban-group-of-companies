@@ -8,10 +8,10 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import lombok.Data;
-import org.hibernate.annotations.ColumnDefault;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -50,9 +50,17 @@ public class UserAccount implements UserDetails {
     private boolean active = true;
 
     // Indicates whether the user has verified their email address.
-    @Column(name = "enabled", nullable = false)
-    @ColumnDefault("false")
-    private boolean enabled = false;
+    @Column(name = "is_verified", nullable = false)
+    private boolean verified = false;
+
+    @Column(name = "email_verified_at")
+    private Instant emailVerifiedAt;
+
+    @Column(name = "email_verification_last_sent_at")
+    private Instant emailVerificationLastSentAt;
+
+    @Column(name = "email_verification_send_count_24h", nullable = false)
+    private int emailVerificationSendCount24h = 0;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -86,6 +94,6 @@ public class UserAccount implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return enabled;
+        return verified;
     }
 }

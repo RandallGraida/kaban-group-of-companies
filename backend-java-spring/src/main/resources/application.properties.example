@@ -1,0 +1,4 @@
+spring.application.name=kaban-banking
+
+# Parent module defaults (override per-service as needed)
+spring.profiles.active=${SPRING_PROFILES_ACTIVE:development}

@@ -1,0 +1,7 @@
+# Test profile uses PostgreSQL; provide a dedicated test DB via TEST_DB_URL if desired.
+spring.datasource.url=${TEST_DB_URL:jdbc:postgresql://localhost:5432/transaction_service_db}
+spring.datasource.username=${DB_USERNAME:postgres}
+spring.datasource.password=${DB_PASSWORD:change-me}
+spring.datasource.driver-class-name=org.postgresql.Driver
+
+spring.jpa.hibernate.ddl-auto=update
