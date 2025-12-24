@@ -18,7 +18,7 @@ import com.example.auth_service.service.publisher.UserRegisteredPublisher;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
-import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -33,7 +33,6 @@ import org.springframework.transaction.annotation.Transactional;
  * It coordinates with repositories for data access, a password encoder for security, and a publisher to notify other services of user registration.
  */
 @Service
-@RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
     private final UserAccountRepository userRepository;
@@ -42,6 +41,24 @@ public class AuthServiceImpl implements AuthService {
     private final JwtUtil jwtUtil;
     private final UserRegisteredPublisher userRegisteredPublisher;
     private final AuthenticationManager authenticationManager;
+    private final AuthService self;
+
+    public AuthServiceImpl(
+            UserAccountRepository userRepository,
+            VerificationTokenRepository tokenRepository,
+            PasswordEncoder passwordEncoder,
+            JwtUtil jwtUtil,
+            UserRegisteredPublisher userRegisteredPublisher,
+            AuthenticationManager authenticationManager,
+            @Lazy AuthService self) {
+        this.userRepository = userRepository;
+        this.tokenRepository = tokenRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtUtil = jwtUtil;
+        this.userRegisteredPublisher = userRegisteredPublisher;
+        this.authenticationManager = authenticationManager;
+        this.self = self;
+    }
 
     /**
      * Registers a new user, creates a verification token, and publishes a user registration event.
@@ -116,7 +133,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public RegistrationResponse signup(SignupRequest request) {
-        return registerUser(new RegistrationRequest(
+        return self.registerUser(new RegistrationRequest(
                 request.email(),
                 request.password(),
                 request.firstName(),

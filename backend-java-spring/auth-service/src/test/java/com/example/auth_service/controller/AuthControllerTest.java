@@ -9,7 +9,6 @@ import com.example.auth_service.dto.AuthResponse;
 import com.example.auth_service.dto.LoginRequest;
 import com.example.auth_service.dto.RegistrationRequest;
 import com.example.auth_service.dto.RegistrationResponse;
-import com.example.auth_service.dto.SignupRequest;
 import com.example.auth_service.service.AuthService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;

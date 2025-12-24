@@ -8,16 +8,20 @@ import com.example.auth_service.dto.SignupRequest;
 import com.example.auth_service.service.AuthService;
 import jakarta.validation.Valid;
 import java.net.URI;
+import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import static org.springframework.http.ResponseEntity.*;
 
 /**
  * REST controller for handling user authentication requests.
@@ -27,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Validated
 public class AuthController {
 
     private final AuthService authService;
@@ -42,7 +47,8 @@ public class AuthController {
      */
     @PostMapping("/register")
     public ResponseEntity<RegistrationResponse> register(@Valid @RequestBody RegistrationRequest request) {
-        return ResponseEntity.status(201).body(authService.registerUser(request));
+        authService.registerUser(request);
+        return status(201).body(new RegistrationResponse("Registration successful. Please verify your email."));
     }
 
     /**
@@ -53,7 +59,8 @@ public class AuthController {
      */
     @PostMapping("/signup")
     public ResponseEntity<RegistrationResponse> signup(@Valid @RequestBody SignupRequest request) {
-        return ResponseEntity.status(201).body(authService.signup(request));
+        authService.signup(request);
+        return status(201).body(new RegistrationResponse("Registration successful. Please verify your email."));
     }
 
     /**
@@ -63,7 +70,11 @@ public class AuthController {
      * @return A {@link ResponseEntity} that redirects the user to the frontend login page with a success flag.
      */
     @GetMapping("/verify")
-    public ResponseEntity<Void> verify(@RequestParam("token") String token) {
+    public ResponseEntity<Void> verify(
+            @RequestParam("token") 
+            @Pattern(regexp = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", message = "Invalid token format")
+            String token
+    ) {
         authService.verifyUser(token);
         // Redirect to frontend login page with success flag
         return ResponseEntity.status(HttpStatus.FOUND)
