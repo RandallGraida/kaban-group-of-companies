@@ -6,13 +6,13 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-randall}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-MobyDick_@KabanKaarawanAbril222005}
+      POSTGRES_DB: ${POSTGRES_DB:-kaban_auth}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-randall} -d ${POSTGRES_DB:-kaban_auth}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -25,15 +25,15 @@ services:
       dockerfile: auth-service/Dockerfile
     container_name: kaban-auth-service
     ports:
-      - "${SERVER_PORT}:${SERVER_PORT}"
+      - "${SERVER_PORT:-8081}:${SERVER_PORT:-8081}"
     environment:
-      SERVER_PORT: ${SERVER_PORT}
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SERVER_PORT: ${SERVER_PORT:-8081}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-kaban_auth}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-randall}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-MobyDick_@KabanKaarawanAbril222005}
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      NOTIFICATION_SERVICE_BASE_URL: ${NOTIFICATION_SERVICE_BASE_URL}
-      APP_FRONTEND_URL: ${APP_FRONTEND_URL}
+      NOTIFICATION_SERVICE_BASE_URL: ${NOTIFICATION_SERVICE_BASE_URL:-http://notification-service:8084}
+      APP_FRONTEND_URL: ${APP_FRONTEND_URL:-http://localhost:4200}
       SERVER_FORWARD_HEADERS_STRATEGY: framework
     depends_on:
       postgres:
@@ -54,7 +54,7 @@ services:
       SERVER_PORT: 8084
       SPRING_MAIL_HOST: mailhog
       SPRING_MAIL_PORT: 1025
-      APP_AUTH_BASE_URL: http://localhost:${SERVER_PORT}
+      APP_AUTH_BASE_URL: http://localhost:${SERVER_PORT:-8081}
     depends_on:
       mailhog:
         condition: service_started
