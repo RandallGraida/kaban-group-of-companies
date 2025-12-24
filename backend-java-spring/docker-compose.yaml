@@ -35,6 +35,8 @@ services:
       NOTIFICATION_SERVICE_BASE_URL: ${NOTIFICATION_SERVICE_BASE_URL:-http://notification-service:8084}
       APP_FRONTEND_URL: ${APP_FRONTEND_URL:-http://localhost:4200}
       SERVER_FORWARD_HEADERS_STRATEGY: framework
+      APP_JWT_SECRET: ${APP_JWT_SECRET:-MobyDick_@AuthenticationKaarawanAbril222005}
+      APP_JWT_EXPIRATION: ${APP_JWT_EXPIRATION:-PT1H}
     depends_on:
       postgres:
         condition: service_healthy
