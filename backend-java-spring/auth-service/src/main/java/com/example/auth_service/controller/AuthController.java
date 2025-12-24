@@ -47,8 +47,8 @@ public class AuthController {
      */
     @PostMapping("/register")
     public ResponseEntity<RegistrationResponse> register(@Valid @RequestBody RegistrationRequest request) {
-        authService.registerUser(request);
-        return status(201).body(new RegistrationResponse("Registration successful. Please verify your email."));
+        RegistrationResponse response = authService.registerUser(request);
+        return status(201).body(response);
     }
 
     /**
@@ -59,8 +59,8 @@ public class AuthController {
      */
     @PostMapping("/signup")
     public ResponseEntity<RegistrationResponse> signup(@Valid @RequestBody SignupRequest request) {
-        authService.signup(request);
-        return status(201).body(new RegistrationResponse("Registration successful. Please verify your email."));
+        RegistrationResponse response = authService.signup(request);
+        return status(201).body(response);
     }
 
     /**
