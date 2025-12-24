@@ -24,40 +24,50 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 @ControllerAdvice
 public class AuthExceptionHandler {
 
-    record ErrorResponse(int status, String message, String timestamp) {}
+    public record ErrorResponse(int status, String message, String timestamp) {}
 
     @ExceptionHandler(UserAlreadyExistsException.class)
     public ResponseEntity<ErrorResponse> handleUserExists(UserAlreadyExistsException ex) {
         // 409 indicates a conflict with a unique constraint (email).
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(new ErrorResponse(409, ex.getMessage(), Instant.now().toString()));
+        return new ResponseEntity<>(
+                new ErrorResponse(409, ex.getMessage(), Instant.now().toString()),
+                HttpStatus.CONFLICT
+        );
     }
 
     @ExceptionHandler(InvalidTokenException.class)
     public ResponseEntity<ErrorResponse> handleInvalidToken(InvalidTokenException ex) {
         // 400 for malformed/unknown verification tokens.
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(400, ex.getMessage(), Instant.now().toString()));
+        return new ResponseEntity<>(
+                new ErrorResponse(400, ex.getMessage(), Instant.now().toString()),
+                HttpStatus.BAD_REQUEST
+        );
     }
 
     @ExceptionHandler(TokenExpiredException.class)
     public ResponseEntity<ErrorResponse> handleExpiredToken(TokenExpiredException ex) {
         // 410 indicates a previously valid resource is no longer usable (expired token).
-        return ResponseEntity.status(HttpStatus.GONE)
-                .body(new ErrorResponse(410, ex.getMessage(), Instant.now().toString()));
+        return new ResponseEntity<>(
+                new ErrorResponse(410, ex.getMessage(), Instant.now().toString()),
+                HttpStatus.GONE
+        );
     }
 
     @ExceptionHandler(EmailNotVerifiedException.class)
     public ResponseEntity<ErrorResponse> handleEmailNotVerified(EmailNotVerifiedException ex) {
         // 403 indicates the credentials may be correct, but the account state forbids login.
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(new ErrorResponse(403, ex.getMessage(), Instant.now().toString()));
+        return new ResponseEntity<>(
+                new ErrorResponse(403, ex.getMessage(), Instant.now().toString()),
+                HttpStatus.FORBIDDEN
+        );
     }
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleBadCredentials(BadCredentialsException ex) {
         // 401 for invalid credentials / authentication failure.
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(new ErrorResponse(401, ex.getMessage(), Instant.now().toString()));
+        return new ResponseEntity<>(
+                new ErrorResponse(401, ex.getMessage(), Instant.now().toString()),
+                HttpStatus.UNAUTHORIZED
+        );
     }
 }
