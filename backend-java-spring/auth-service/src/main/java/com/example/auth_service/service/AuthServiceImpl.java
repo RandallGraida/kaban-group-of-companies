@@ -88,7 +88,7 @@ public class AuthServiceImpl implements AuthService {
         token.setCreatedAt(Instant.now());
         token.setConsumedAt(null);
         token.setRevokedAt(null);
-        token.setExpiryDate(Instant.now().plusSeconds(24 * 60 * 60));
+        token.setExpiryDate(Instant.now().plusSeconds(86400));
         tokenRepository.save(token);
 
         userRegisteredPublisher.publish(user.getEmail(), tokenValue);
