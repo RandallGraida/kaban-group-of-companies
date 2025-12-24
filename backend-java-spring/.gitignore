@@ -37,3 +37,8 @@ build/
 ### VS Code ###
 .vscode/
 .env
+
+# Project specific ignores
+**/GEMINI.md
+*.log
+scan_secrets.sh
