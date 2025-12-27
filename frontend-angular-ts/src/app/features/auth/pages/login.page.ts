@@ -1,5 +1,4 @@
 import { Component, inject, signal } from '@angular/core';
-import { NgIf } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { HeaderComponent } from '../../../components/common/header/header.component';
@@ -16,7 +15,7 @@ import { timer } from 'rxjs';
 @Component({
   standalone: true,
   selector: 'app-login-page',
-  imports: [ReactiveFormsModule, RouterLink, HeaderComponent, NgIf],
+  imports: [ReactiveFormsModule, RouterLink, HeaderComponent],
   template: `
     <app-header />
 
@@ -27,12 +26,13 @@ import { timer } from 'rxjs';
           <p class="mt-1 text-sm text-slate-600">Welcome back to Kaban Banking.</p>
 
           <form class="mt-6 space-y-4" [formGroup]="form" (ngSubmit)="onSubmit()">
-            <div
-              *ngIf="signupSuccessEmail()"
-              class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
-            >
-              Account created. Please verify your email before logging in.
-            </div>
+            @if (signupSuccessEmail()) {
+              <div
+                class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+              >
+                Account created. Please verify your email before logging in.
+              </div>
+            }
 
             <div>
               <label class="block text-sm font-medium text-slate-700">Email</label>
@@ -65,41 +65,48 @@ import { timer } from 'rxjs';
               [disabled]="isLoading() || form.invalid"
               class="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-60"
             >
-              @if (isLoading()) { Logging in... } @else { Login }
+              @if (isLoading()) {
+                Logging in...
+              } @else {
+                Login
+              }
             </button>
 
             <!-- Resend Verification Email (only when needed) -->
-            <div
-              *ngIf="showResendVerification()"
-              class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800"
-            >
-              <p class="text-slate-700">
-                Didn't receive a verification email?
-              </p>
-              <div class="mt-2 flex items-center gap-3">
-                <button
-                  type="button"
-                  class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 disabled:opacity-60"
-                  (click)="onResendVerification()"
-                  [disabled]="resendInProgress() || resendCooldownRemaining() > 0 || email.invalid"
-                >
-                  Resend verification email
-                </button>
+            @if (showResendVerification()) {
+              <div class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800">
+                <p class="text-slate-700">Didn't receive a verification email?</p>
+                <div class="mt-2 flex items-center gap-3">
+                  <button
+                    type="button"
+                    class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 disabled:opacity-60"
+                    (click)="onResendVerification()"
+                    [disabled]="resendInProgress() || resendCooldownRemaining() > 0 || email.invalid"
+                  >
+                    Resend verification email
+                  </button>
 
-                <span *ngIf="resendCooldownRemaining() > 0" class="text-sm text-slate-600">
-                  Try again in {{ resendCooldownRemaining() }}s
-                </span>
+                  @if (resendCooldownRemaining() > 0) {
+                    <span class="text-sm text-slate-600">
+                      Try again in {{ resendCooldownRemaining() }}s
+                    </span>
+                  }
+                </div>
+
+                @if (resendStatusMessage()) {
+                  <p class="mt-2 text-sm text-slate-700">
+                    {{ resendStatusMessage() }}
+                  </p>
+                }
               </div>
-
-              <p *ngIf="resendStatusMessage()" class="mt-2 text-sm text-slate-700">
-                {{ resendStatusMessage() }}
-              </p>
-            </div>
+            }
           </form>
 
           <p class="mt-5 text-sm text-slate-600">
             No account?
-            <a routerLink="/auth/signup" class="font-semibold text-blue-600 hover:text-blue-500">Sign up</a>
+            <a routerLink="/auth/signup" class="font-semibold text-blue-600 hover:text-blue-500"
+              >Sign up</a
+            >
           </p>
         </div>
       </section>
@@ -141,7 +148,7 @@ export class LoginPageComponent {
   }
 
   constructor() {
-    const state = window.history.state as { signupSuccess?: boolean; email?: unknown } | null;
+    const state = globalThis.history.state as { signupSuccess?: boolean; email?: unknown } | null;
     if (state?.signupSuccess && typeof state.email === 'string' && state.email.length > 0) {
       this.signupSuccessEmail.set(state.email);
       this.unverifiedEmail.set(state.email);
@@ -162,9 +169,9 @@ export class LoginPageComponent {
     this.isLoading.set(true);
     this.resendStatusMessage.set(null);
     this.auth.login(this.form.getRawValue()).subscribe({
-      next: async () => {
+      next: () => {
         this.isLoading.set(false);
-        await this.router.navigateByUrl('/dashboard');
+        void this.router.navigateByUrl('/dashboard');
       },
       error: (err) => {
         this.isLoading.set(false);

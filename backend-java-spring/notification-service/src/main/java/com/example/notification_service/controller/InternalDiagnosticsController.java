@@ -3,6 +3,8 @@ package com.example.notification_service.controller;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.http.ResponseEntity;
@@ -52,8 +54,8 @@ public class InternalDiagnosticsController {
         payload.put("smtpPortConfigured", smtpPortConfigured);
         payload.put("smtpUsernameConfigured", smtpUsernameConfigured);
         payload.put("smtpPasswordConfigured", smtpPasswordConfigured);
-        payload.put("smtpHostValue", environment.getProperty("spring.mail.host"));
-        payload.put("smtpPortValue", environment.getProperty("spring.mail.port"));
+        payload.put("smtpHostValue", Objects.requireNonNull(environment.getProperty("spring.mail.host")));
+        payload.put("smtpPortValue", Objects.requireNonNull(environment.getProperty("spring.mail.port")));
         return ResponseEntity.ok(payload);
     }
 }
