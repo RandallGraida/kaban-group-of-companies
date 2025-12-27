@@ -8,14 +8,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyMap;
-
 import com.example.auth_service.dto.AuthResponse;
 import com.example.auth_service.dto.LoginRequest;
 import com.example.auth_service.dto.RegistrationRequest;
 import com.example.auth_service.dto.RegistrationResponse;
-import com.example.auth_service.dto.SignupRequest;
 import com.example.auth_service.exception.EmailNotVerifiedException;
-import com.example.auth_service.exception.InvalidTokenException;
 import com.example.auth_service.exception.TokenExpiredException;
 import com.example.auth_service.exception.UserAlreadyExistsException;
 import com.example.auth_service.model.UserAccount;
@@ -69,7 +66,7 @@ class AuthServiceImplTest {
 
     @BeforeEach
     void setup() {
-        final AutoCloseable autoCloseable = MockitoAnnotations.openMocks(this);
+        MockitoAnnotations.openMocks(this);
     }
 
     /**
@@ -111,7 +108,7 @@ class AuthServiceImplTest {
         user.setEmail("user@kaban.com");
         user.setPasswordHash("hashed");
         user.setActive(true);
-        user.setEnabled(true);
+        user.setVerified(true);
         when(userRepository.findByEmail("user@kaban.com")).thenReturn(Optional.of(user));
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(null);
@@ -133,7 +130,7 @@ class AuthServiceImplTest {
         user.setEmail(req.email());
         user.setPasswordHash("hashed");
         user.setActive(false);
-        user.setEnabled(true);
+        user.setVerified(true);
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(null);
         when(userRepository.findByEmail(req.email())).thenReturn(Optional.of(user));
@@ -158,7 +155,7 @@ class AuthServiceImplTest {
     void verifyUser_enables_user_and_deletes_token() {
         UserAccount user = new UserAccount();
         user.setEmail("user@kaban.com");
-        user.setEnabled(false);
+        user.setVerified(false);
         VerificationToken token = new VerificationToken();
         token.setToken("t1");
         token.setExpiryDate(Instant.now().plusSeconds(60));
@@ -168,9 +165,9 @@ class AuthServiceImplTest {
 
         authService.verifyUser("t1");
 
-        assertThat(user.isEnabled()).isTrue();
+        assertThat(user.isVerified()).isTrue();
         verify(userRepository).save(user);
-        verify(tokenRepository).delete(token);
+        verify(tokenRepository).save(token);
     }
 
     // Ensures that an expired verification token cannot be used to verify an account.

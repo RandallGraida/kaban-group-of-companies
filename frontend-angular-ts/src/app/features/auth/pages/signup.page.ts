@@ -172,7 +172,9 @@ export class SignupPageComponent {
           message: res?.message ?? 'Check your email to verify your account.',
           variant: 'success',
         });
-        await this.router.navigateByUrl('/auth/login');
+        await this.router.navigateByUrl('/auth/login', {
+          state: { signupSuccess: true, email: this.email.value },
+        });
       },
       error: (err) => {
         this.isLoading.set(false);

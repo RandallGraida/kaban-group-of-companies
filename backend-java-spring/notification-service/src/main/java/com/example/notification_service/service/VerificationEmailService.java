@@ -126,11 +126,7 @@ public class VerificationEmailService {
         boolean hasUsername = environment.containsProperty("spring.mail.username");
         boolean hasPassword = environment.containsProperty("spring.mail.password");
 
-        if (hasUsername != hasPassword) {
-            return false;
-        }
-
-        return true;
+        return hasUsername == hasPassword;
     }
 
     private static String fingerprint(String token) {

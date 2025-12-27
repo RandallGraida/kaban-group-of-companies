@@ -18,6 +18,10 @@ public record RegistrationRequest(
                 message = "Password must include upper/lowercase, a number, and a symbol"
         )
         String password,
-        @NotBlank String firstName,
-        @NotBlank String lastName
+        @NotBlank
+        @Pattern(regexp = "^[a-zA-Z\\s\\-']+$", message = "First name contains invalid characters")
+        String firstName,
+        @NotBlank
+        @Pattern(regexp = "^[a-zA-Z\\s\\-']+$", message = "Last name contains invalid characters")
+        String lastName
 ) {}

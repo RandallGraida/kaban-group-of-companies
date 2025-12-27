@@ -62,16 +62,15 @@ class AuthJpaPostgresIntegrationTest {
     private JdbcTemplate jdbcTemplate;
 
     @Test
-    void users_table_has_enabled_column() {
-        // Email verification requires an explicit enabled/verified flag.
-        // This assertion prevents silent regressions where "enabled" is removed from DDL.
+    void users_table_has_is_verified_column() {
+        // Email verification requires an explicit verified flag.
         Integer count = jdbcTemplate.queryForObject(
                 """
                 select count(*)
                 from information_schema.columns
                 where table_schema = 'public'
                   and table_name = 'users'
-                  and column_name = 'enabled'
+                  and column_name = 'is_verified'
                 """,
                 Integer.class
         );
@@ -85,14 +84,14 @@ class AuthJpaPostgresIntegrationTest {
         u1.setEmail("dup@example.com");
         u1.setPasswordHash("hash");
         u1.setActive(true);
-        u1.setEnabled(false);
+        u1.setVerified(false);
         userRepository.saveAndFlush(u1);
 
         UserAccount u2 = new UserAccount();
         u2.setEmail("dup@example.com");
         u2.setPasswordHash("hash2");
         u2.setActive(true);
-        u2.setEnabled(false);
+        u2.setVerified(false);
 
         assertThatThrownBy(() -> userRepository.saveAndFlush(u2))
                 .isInstanceOf(DataIntegrityViolationException.class);
@@ -105,7 +104,7 @@ class AuthJpaPostgresIntegrationTest {
         user.setEmail("user@example.com");
         user.setPasswordHash("hash");
         user.setActive(true);
-        user.setEnabled(false);
+        user.setVerified(false);
         userRepository.saveAndFlush(user);
 
         VerificationToken t1 = new VerificationToken();

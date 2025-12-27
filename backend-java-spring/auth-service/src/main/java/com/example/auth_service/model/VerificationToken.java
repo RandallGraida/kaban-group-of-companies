@@ -10,6 +10,7 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import lombok.Data;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a one-time email verification token for a newly registered user.
@@ -29,6 +30,18 @@ public class VerificationToken {
 
     @Column(name = "expiry_date", nullable = false)
     private Instant expiryDate;
+
+    @Column(name = "created_at")
+    @Nullable
+    private Instant createdAt;
+
+    @Column(name = "consumed_at")
+    @Nullable
+    private Instant consumedAt;
+
+    @Column(name = "revoked_at")
+    @Nullable
+    private Instant revokedAt;
 
     @OneToOne
     @JoinColumn(name = "user_id", nullable = false, unique = true)

@@ -1,0 +1,13 @@
+spring.application.name=notification-service
+
+server.port=${SERVER_PORT:8084}
+spring.profiles.active=${SPRING_PROFILES_ACTIVE:development}
+
+spring.datasource.url=${DB_URL:jdbc:postgresql://localhost:5432/notification_service_db}
+spring.datasource.username=${DB_USERNAME:postgres}
+spring.datasource.password=${DB_PASSWORD:change-me}
+spring.datasource.driver-class-name=org.postgresql.Driver
+
+spring.jpa.hibernate.ddl-auto=update
+
+# Email provider configuration should be provided via environment variables.

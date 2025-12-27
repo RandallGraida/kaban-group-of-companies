@@ -17,8 +17,9 @@ import com.example.auth_service.security.JwtUtil;
 import com.example.auth_service.service.publisher.UserRegisteredPublisher;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
-import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -33,7 +34,6 @@ import org.springframework.transaction.annotation.Transactional;
  * It coordinates with repositories for data access, a password encoder for security, and a publisher to notify other services of user registration.
  */
 @Service
-@RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
     private final UserAccountRepository userRepository;
@@ -42,6 +42,24 @@ public class AuthServiceImpl implements AuthService {
     private final JwtUtil jwtUtil;
     private final UserRegisteredPublisher userRegisteredPublisher;
     private final AuthenticationManager authenticationManager;
+    private final AuthService self;
+
+    public AuthServiceImpl(
+            UserAccountRepository userRepository,
+            VerificationTokenRepository tokenRepository,
+            PasswordEncoder passwordEncoder,
+            JwtUtil jwtUtil,
+            UserRegisteredPublisher userRegisteredPublisher,
+            AuthenticationManager authenticationManager,
+            @Lazy AuthService self) {
+        this.userRepository = userRepository;
+        this.tokenRepository = tokenRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtUtil = jwtUtil;
+        this.userRegisteredPublisher = userRegisteredPublisher;
+        this.authenticationManager = authenticationManager;
+        this.self = self;
+    }
 
     /**
      * Registers a new user, creates a verification token, and publishes a user registration event.
@@ -60,15 +78,18 @@ public class AuthServiceImpl implements AuthService {
 
         UserAccount user = new UserAccount();
         user.setEmail(normalizedEmail);
-        user.setPasswordHash(passwordEncoder.encode(request.password()));
-        user.setEnabled(false);
+        user.setPasswordHash(Objects.requireNonNull(passwordEncoder.encode(request.password())));
+        user.setVerified(false);
         userRepository.save(user);
 
         String tokenValue = UUID.randomUUID().toString();
         VerificationToken token = new VerificationToken();
         token.setToken(tokenValue);
         token.setUser(user);
-        token.setExpiryDate(Instant.now().plusSeconds(24 * 60 * 60));
+        token.setCreatedAt(Instant.now());
+        token.setConsumedAt(null);
+        token.setRevokedAt(null);
+        token.setExpiryDate(Instant.now().plusSeconds(86400));
         tokenRepository.save(token);
 
         userRegisteredPublisher.publish(user.getEmail(), tokenValue);
@@ -87,14 +108,21 @@ public class AuthServiceImpl implements AuthService {
     public void verifyUser(String token) {
         VerificationToken verificationToken = tokenRepository.findByToken(token)
                 .orElseThrow(() -> new InvalidTokenException("Invalid verification token"));
+
+        if (verificationToken.getConsumedAt() != null || verificationToken.getRevokedAt() != null) {
+            throw new InvalidTokenException("Invalid verification token");
+        }
         if (verificationToken.isExpired()) {
             throw new TokenExpiredException("Verification token has expired");
         }
 
         UserAccount user = verificationToken.getUser();
-        user.setEnabled(true);
+        user.setVerified(true);
+        user.setEmailVerifiedAt(Instant.now());
         userRepository.save(user);
-        tokenRepository.delete(verificationToken);
+
+        verificationToken.setConsumedAt(Instant.now());
+        tokenRepository.save(verificationToken);
     }
 
     /**
@@ -106,7 +134,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public RegistrationResponse signup(SignupRequest request) {
-        return registerUser(new RegistrationRequest(
+        return self.registerUser(new RegistrationRequest(
                 request.email(),
                 request.password(),
                 request.firstName(),
