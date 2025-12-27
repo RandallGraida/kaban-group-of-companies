@@ -144,11 +144,10 @@
 			<artifactId>dotenv-java</artifactId>
 			<version>3.0.0</version>
 		</dependency>
-		<!-- Fix for CVE-2024-25710 and CVE-2024-26308 -->
+		<!-- Fix for CVE-2024-25710 and CVE-2024-26308 (Managed in Parent) -->
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-compress</artifactId>
-			<version>1.27.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.jspecify</groupId>
