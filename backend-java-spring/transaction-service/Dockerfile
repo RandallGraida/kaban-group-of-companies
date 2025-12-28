@@ -7,10 +7,10 @@ COPY . .
 # Grant execution rights
 RUN chmod +x mvnw
 
-# Build only the notification-service module
-RUN ./mvnw -pl notification-service -am clean package -DskipTests
+# Build only the transaction-service module
+RUN ./mvnw -pl transaction-service -am clean package -DskipTests
 
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-COPY --from=build /app/notification-service/target/*.jar app.jar
+COPY --from=build /app/transaction-service/target/*.jar app.jar
 ENTRYPOINT ["java", "-jar", "app.jar"]
