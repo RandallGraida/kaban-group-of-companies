@@ -41,6 +41,7 @@ resource "aws_launch_template" "ecs_lt" {
   name_prefix   = "${var.project_name}-ecs-lt-"
   image_id      = data.aws_ami.ecs_optimized.id
   instance_type = "t3.micro"
+  key_name      = "kaban-key"
 
   iam_instance_profile {
     name = aws_iam_instance_profile.ecs_instance_profile.name
