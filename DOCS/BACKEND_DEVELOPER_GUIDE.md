@@ -7,6 +7,7 @@
 - [Service Responsibilities](#service-responsibilities)
 - [Event-Driven Flow: User Signup](#event-driven-flow-user-signup)
 - [Tech Stack](#tech-stack)
+- [AWS Cloud Infrastructure (Terraform)](#aws-cloud-infrastructure-terraform)
 - [Free Tier Deployment Guide](#free-tier-deployment-guide)
 - [Nginx Gateway Configuration](#nginx-gateway-configuration)
 
@@ -72,6 +73,38 @@ This architecture retains the **full business logic** (all 4 microservices) and 
 *   **Email:** AWS SES
 *   **Networking:** Route 53 (Paid), Docker DNS
 *   **Cloud:** AWS Free Tier (EC2 `t3.micro`, RDS `db.t3.micro`, CloudFront)
+
+---
+
+## AWS Cloud Infrastructure (Terraform)
+
+The cloud environment is provisioned using **Terraform** in the `infrastructure/` directory.
+
+### 1. Prerequisites
+*   **AWS CLI Configured:** Must use a named profile `[kaban]` pointing to `ap-southeast-2` (Sydney).
+    ```bash
+    aws configure --profile kaban
+    ```
+*   **Terraform Installed:** `brew install terraform`
+
+### 2. Architecture Components
+*   **VPC:** `kaban-vpc` (10.0.0.0/16) with 2 Public Subnets.
+*   **RDS:** `kaban-db` (PostgreSQL 16.6, `db.t3.micro`).
+*   **ECS:** `kaban-cluster` backed by an Auto Scaling Group managing 1 `t3.micro` EC2 instance.
+*   **ECR:** Private repositories for storing Docker images.
+
+### 3. Deployment Commands
+```bash
+cd infrastructure
+terraform init
+terraform apply
+```
+*   **Inputs:** You will be prompted for `db_password` and `jwt_secret`.
+
+### 4. Troubleshooting: OOM (Out of Memory)
+Running 4 Java apps on a 1GB instance will crash it. We solve this by enabling **Swap Space** via the EC2 Launch Template (`user_data` script).
+*   **Symptom:** Services crash, SSH fails with `fatal error: out of memory`.
+*   **Fix:** Ensure `ecs.tf` includes the swap creation script in `user_data`.
 
 ---
 
