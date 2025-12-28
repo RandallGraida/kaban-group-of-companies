@@ -1,0 +1,35 @@
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Defines the location of the analysis task cache
+  GIT_DEPTH: "0"  # Tells git to fetch all the branches of the project, required by the analysis task
+
+stages:
+  - analysis
+  - build
+
+cache:
+  paths:
+    - .m2/repository
+    - .sonar/cache
+
+sonarcloud-check:
+  stage: analysis
+  image: maven:3.8.5-openjdk-17
+  script:
+    - cd backend-java-spring
+    - mvn verify sonar:sonar -Dsonar.projectKey=$SONAR_PROJECT_KEY -Dsonar.organization=$SONAR_ORGANIZATION -Dsonar.host.url=https://sonarcloud.io -Dsonar.login=$SONAR_TOKEN
+  only:
+    - merge_requests
+    - master
+    - main
+    - develop
+
+build_backend:
+  stage: build
+  image: maven:3.8.5-openjdk-17
+  script:
+    - cd backend-java-spring
+    - mvn clean package -DskipTests
+  artifacts:
+    paths:
+      - backend-java-spring/**/target/*.jar
