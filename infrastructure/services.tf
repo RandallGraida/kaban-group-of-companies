@@ -27,7 +27,8 @@ resource "aws_ecs_task_definition" "auth_service" {
         { name = "SPRING_DATASOURCE_URL", value = "jdbc:postgresql://${aws_db_instance.postgres.address}:5432/kaban_db" },
         { name = "SPRING_DATASOURCE_USERNAME", value = "postgres" },
         { name = "SPRING_DATASOURCE_PASSWORD", value = var.db_password },
-        { name = "SPRING_JPA_HIBERNATE_DDL_AUTO", value = "update" }
+        { name = "SPRING_JPA_HIBERNATE_DDL_AUTO", value = "update" },
+        { name = "APP_JWT_SECRET", value = var.jwt_secret }
       ],
       logConfiguration = {
         logDriver = "awslogs"

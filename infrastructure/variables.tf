@@ -15,3 +15,9 @@ variable "db_password" {
   type        = string
   sensitive   = true
 }
+
+variable "jwt_secret" {
+  description = "Secret key for JWT signing"
+  type        = string
+  sensitive   = true
+}
